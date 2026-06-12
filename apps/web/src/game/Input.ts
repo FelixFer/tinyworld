@@ -3,6 +3,7 @@ export type InputState = {
   down: boolean;
   left: boolean;
   right: boolean;
+  hidden: boolean;
 };
 
 export function createInput(): InputState {
@@ -11,6 +12,7 @@ export function createInput(): InputState {
     down: false,
     left: false,
     right: false,
+    hidden: document.hidden,
   };
 
   const onKey = (e: KeyboardEvent, pressed: boolean) => {
@@ -44,9 +46,17 @@ export function createInput(): InputState {
     state.up = state.down = state.left = state.right = false;
   };
 
+  const onVisibility = () => {
+    state.hidden = document.hidden;
+    if (document.hidden) {
+      state.up = state.down = state.left = state.right = false;
+    }
+  };
+
   window.addEventListener("keydown", onKeyDown);
   window.addEventListener("keyup", onKeyUp);
   window.addEventListener("blur", onBlur);
+  document.addEventListener("visibilitychange", onVisibility);
 
   return state;
 }

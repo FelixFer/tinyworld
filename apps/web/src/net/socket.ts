@@ -17,7 +17,7 @@ const WS_URL = import.meta.env.DEV
 export interface SocketHandle {
   close: () => void;
   sendInput: (seq: number, dt: number, dx: number, dy: number) => void;
-  sendHello: (name?: string) => void;
+  sendHello: (name?: string, token?: string) => void;
 }
 
 interface SocketOptions {
@@ -86,9 +86,9 @@ export function createSocket(opts: SocketOptions): SocketHandle {
       const msg: InputMsg = { type: "input", seq, dt, dx, dy };
       ws.send(JSON.stringify(msg));
     },
-    sendHello: (name?: string) => {
+    sendHello: (name?: string, token?: string) => {
       if (ws.readyState !== WebSocket.OPEN) return;
-      const msg: ClientMsg = { type: "hello", name };
+      const msg: ClientMsg = { type: "hello", name, token };
       ws.send(JSON.stringify(msg));
     },
   };

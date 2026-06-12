@@ -40,15 +40,17 @@ function tryMove(entity: Steppable, dx: number, dy: number, dt: number): void {
 }
 
 export class ServerEntity implements Steppable {
-  readonly id: string;
+  id: string;
   x: number;
   y: number;
   dir: Dir;
   name: string;
   lastInputSeq: number;
+  token: string;
+  disconnectedAt = 0;
   private pendingInputs: EntityInput[] = [];
 
-  constructor(id: string, x: number, y: number, name: string) {
+  constructor(id: string, x: number, y: number, name: string, token: string) {
     const entity = createEntity(id, x, y, name);
     this.id = entity.id;
     this.x = entity.x;
@@ -56,6 +58,7 @@ export class ServerEntity implements Steppable {
     this.dir = entity.dir;
     this.name = entity.name;
     this.lastInputSeq = entity.lastInputSeq;
+    this.token = token;
   }
 
   queueInput(input: EntityInput): void {
@@ -126,14 +129,44 @@ export class ServerGame {
     }
   }
 
-  addEntity(id: string, x: number, y: number, name: string): ServerEntity {
-    const entity = new ServerEntity(id, x, y, name);
+  addEntity(id: string, x: number, y: number, name: string, token: string): ServerEntity {
+    const entity = new ServerEntity(id, x, y, name, token);
     this.entities.set(id, entity);
     return entity;
   }
 
   removeEntity(id: string): void {
     this.entities.delete(id);
+  }
+
+  findEntityByToken(token: string): ServerEntity | undefined {
+    for (const entity of this.entities.values()) {
+      if (entity.token === token) return entity;
+    }
+    return undefined;
+  }
+
+  reconnectEntity(entity: ServerEntity, newId: string): void {
+    this.entities.delete(entity.id);
+    entity.id = newId;
+    entity.disconnectedAt = 0;
+    this.entities.set(newId, entity);
+  }
+
+  markDisconnected(id: string): void {
+    const entity = this.entities.get(id);
+    if (entity) {
+      entity.disconnectedAt = Date.now();
+    }
+  }
+
+  cleanupDisconnected(graceMs: number): void {
+    const now = Date.now();
+    for (const [id, entity] of this.entities) {
+      if (entity.disconnectedAt > 0 && now - entity.disconnectedAt >= graceMs) {
+        this.entities.delete(id);
+      }
+    }
   }
 
   getEntity(id: string): ServerEntity | undefined {

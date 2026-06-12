@@ -46,6 +46,14 @@ export class LocalPlayer {
     collision: CollisionGrid,
     sendInput: (seq: number, dt: number, dx: number, dy: number) => void,
   ): void {
+    // Skip input when tab is hidden (saves server processing and prevents drift)
+    if (input.hidden) {
+      this.moving = false;
+      this.animTime = 0;
+      this.render();
+      return;
+    }
+
     let dx = 0;
     let dy = 0;
     if (input.left) dx -= 1;

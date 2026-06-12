@@ -14,7 +14,10 @@ export interface GameInstance {
   destroy: () => void;
 }
 
-export async function initGame(container: HTMLElement): Promise<GameInstance> {
+export async function initGame(
+  container: HTMLElement,
+  onPlayerCount?: (count: number) => void,
+): Promise<GameInstance> {
   const app = new Application();
 
   await app.init({
@@ -54,6 +57,13 @@ export async function initGame(container: HTMLElement): Promise<GameInstance> {
     onOpen: () => {},
     onClose: () => {},
     onWelcome: (msg: WelcomeMsg) => {
+      // Store token for reconnection
+      try {
+        localStorage.setItem("tinyworld_token", msg.token);
+      } catch {
+        // localStorage might be unavailable
+      }
+
       console.log(
         "Welcome received, selfId:",
         msg.selfId,
@@ -87,6 +97,8 @@ export async function initGame(container: HTMLElement): Promise<GameInstance> {
         console.log("Ignoring snap before welcome");
         return;
       }
+
+      onPlayerCount?.(msg.playerCount);
 
       lastServerTick = msg.tick;
       const serverTime = performance.now() / 1000 + serverTimeOffset / 1000;

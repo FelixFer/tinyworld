@@ -10,6 +10,7 @@ export default function App() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [ping, setPing] = useState<number | null>(null);
   const [status, setStatus] = useState<ConnStatus>("connecting");
+  const [playerCount, setPlayerCount] = useState(0);
 
   useEffect(() => {
     if (gameInitialized) return;
@@ -20,7 +21,7 @@ export default function App() {
 
     let cleanup: (() => void) | undefined;
     (async () => {
-      const game = await initGame(el);
+      const game = await initGame(el, setPlayerCount);
       cleanup = () => {
         game.destroy();
       };
@@ -57,6 +58,7 @@ export default function App() {
         }}
       >
         {label}
+        {playerCount > 0 && ` · ${playerCount} here`}
       </div>
     </div>
   );

@@ -3,6 +3,7 @@ export type Dir = "up" | "down" | "left" | "right" | "idle";
 export interface HelloMsg {
   type: "hello";
   name?: string;
+  token?: string;
 }
 export interface InputMsg {
   type: "input";
@@ -35,6 +36,7 @@ export type ClientMsg = HelloMsg | InputMsg | EmoteMsg | KickMsg | NoteMsg | Pin
 export interface WelcomeMsg {
   type: "welcome";
   selfId: string;
+  token: string;
   mapVersion: number;
   snapshot: Snapshot;
 }
@@ -44,6 +46,7 @@ export interface SnapMsg {
   tick: number;
   baseTick?: number;
   entities: EntitySnapshot[];
+  playerCount: number;
 }
 
 export interface EventMsg {

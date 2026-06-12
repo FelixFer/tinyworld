@@ -48,6 +48,11 @@ const connectedWebSockets = new Set<ClientWebSocket>();
 
 game.start();
 
+// Periodic cleanup of disconnected entities (every 1s, 5s grace)
+setInterval(() => {
+  game.cleanupDisconnected(5000);
+}, 1000);
+
 const app = uWSLib.App();
 
 function sendToAll(msg: ServerMsg, excludeWs?: ClientWebSocket): void {
@@ -62,11 +67,21 @@ function sendToAll(msg: ServerMsg, excludeWs?: ClientWebSocket): void {
 function broadcastSnapshot(): void {
   const { snapshot, isKeyframe } = snapshots.generateSnapshot(game);
 
+  // Only count and include connected (non-disconnected) entities
+  const activeEntities = Array.from(game.entities.values()).filter((e) => e.disconnectedAt === 0);
+
   const msg: SnapMsg = {
     type: "snap",
     tick: snapshot.tick,
     baseTick: isKeyframe ? undefined : snapshot.tick - 1,
-    entities: snapshot.entities,
+    entities: activeEntities.map((e) => ({
+      id: e.id,
+      x: e.x,
+      y: e.y,
+      dir: e.dir,
+      name: e.name,
+    })),
+    playerCount: activeEntities.length,
   };
 
   sendToAll(msg);
@@ -91,6 +106,43 @@ app
 
     open(ws) {
       const clientId = Math.random().toString(36).slice(2, 10);
+
+      // Check for reconnect token in the URL query string
+      // (sent on first hello message; we assign tokens here)
+      const token = Math.random().toString(36).slice(2);
+
+      // Check if there's an existing disconnected entity we can reconnect
+      const existing = game.findEntityByToken(token);
+      if (existing && existing.disconnectedAt > 0) {
+        console.log(`Reconnecting entity: ${existing.id} -> ${clientId} (${existing.name})`);
+        game.reconnectEntity(existing, clientId);
+        clients.addClient(clientId, clientId);
+        (ws as ClientWebSocket).clientId = clientId;
+
+        const welcome: WelcomeMsg = {
+          type: "welcome",
+          selfId: clientId,
+          token,
+          mapVersion: 1,
+          snapshot: {
+            tick: game.currentTick,
+            entities: Array.from(game.entities.values())
+              .filter((e) => e.disconnectedAt === 0)
+              .map((e) => ({
+                id: e.id,
+                x: e.x,
+                y: e.y,
+                dir: e.dir,
+                name: e.name,
+              })),
+          },
+        };
+        ws.send(JSON.stringify(welcome), false);
+        connectedWebSockets.add(ws);
+        console.log(`Entity count after reconnect: ${game.entities.size}`);
+        return;
+      }
+
       const name = generateName();
       const spawnX = VILLAGE_MAP.spawn.x;
       const spawnY = VILLAGE_MAP.spawn.y;
@@ -107,7 +159,7 @@ app
       }
 
       for (const [entityId, entity] of game.entities) {
-        if (!activeClientIds.has(entityId)) {
+        if (!activeClientIds.has(entityId) && entity.disconnectedAt === 0) {
           console.log(`Cleaning up orphaned entity: ${entityId} (${entity.name})`);
           game.removeEntity(entityId);
           clients.removeClient(entityId);
@@ -115,7 +167,7 @@ app
       }
 
       connectedWebSockets.add(ws);
-      game.addEntity(clientId, spawnX, spawnY, name);
+      game.addEntity(clientId, spawnX, spawnY, name, token);
       clients.addClient(clientId, clientId);
 
       console.log(`Entity count after add: ${game.entities.size}`);
@@ -128,16 +180,19 @@ app
       const welcome: WelcomeMsg = {
         type: "welcome",
         selfId: clientId,
+        token,
         mapVersion: 1,
         snapshot: {
           tick: game.currentTick,
-          entities: Array.from(game.entities.values()).map((e) => ({
-            id: e.id,
-            x: e.x,
-            y: e.y,
-            dir: e.dir,
-            name: e.name,
-          })),
+          entities: Array.from(game.entities.values())
+            .filter((e) => e.disconnectedAt === 0)
+            .map((e) => ({
+              id: e.id,
+              x: e.x,
+              y: e.y,
+              dir: e.dir,
+              name: e.name,
+            })),
         },
       };
 
@@ -211,17 +266,11 @@ app
 
       const clientId = (ws as ClientWebSocket).clientId;
       if (clientId) {
-        game.removeEntity(clientId);
+        // Mark as disconnected instead of removing immediately (5s grace period)
+        game.markDisconnected(clientId);
         clients.removeClient(clientId);
 
-        console.log(`Entity count after remove: ${game.entities.size}`);
-        console.log(
-          `Remaining entities: ${
-            Array.from(game.entities.values())
-              .map((e) => `${e.id}(${e.name})`)
-              .join(", ") || "none"
-          }`,
-        );
+        console.log(`Entity count after disconnect: ${game.entities.size}`);
 
         const leaveEvent: EventMsg = {
           type: "event",
