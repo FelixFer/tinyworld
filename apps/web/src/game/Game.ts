@@ -3,6 +3,7 @@ import { CollisionGrid, VILLAGE_MAP } from "@tinyworld/world";
 import { Application } from "pixi.js";
 import { createSocket } from "../net/socket.js";
 import { Camera } from "./Camera.js";
+import { DayNight } from "./DayNight.js";
 import { ExhibitMarkers } from "./Exhibits.js";
 import { createInput } from "./Input.js";
 import { LocalPlayer } from "./LocalPlayer.js";
@@ -44,6 +45,8 @@ export async function initGame(
 
   const mapRenderer = new MapRenderer(VILLAGE_MAP);
   const exhibitMarkers = new ExhibitMarkers();
+  const dayNight = new DayNight();
+  dayNight.resize(app.screen.width, app.screen.height);
   const collision = new CollisionGrid(VILLAGE_MAP);
   let lastNearId: string | null = null;
   const camera = new Camera(
@@ -61,6 +64,7 @@ export async function initGame(
 
   const onResize = () => {
     camera.resize(app.screen.width, app.screen.height);
+    dayNight.resize(app.screen.width, app.screen.height);
   };
   app.renderer.on("resize", onResize);
 
@@ -126,6 +130,7 @@ export async function initGame(
       }
 
       onPlayerCount?.(msg.playerCount);
+      dayNight.sync(msg.timeOfDay);
 
       lastServerTick = msg.tick;
       const serverTime = performance.now() / 1000 + serverTimeOffset / 1000;
@@ -183,6 +188,7 @@ export async function initGame(
   camera.container.addChild(mapRenderer.container);
   camera.container.addChild(exhibitMarkers.container);
   app.stage.addChild(camera.container);
+  app.stage.addChild(dayNight.container); // screen-space tint, above the world
 
   app.ticker.add(() => {
     const dt = app.ticker.deltaMS / 1000;
@@ -206,6 +212,8 @@ export async function initGame(
     for (const remote of remoteEntities.values()) {
       remote.update(serverTime, dt);
     }
+
+    dayNight.update(dt);
   });
 
   return {

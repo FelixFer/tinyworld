@@ -47,7 +47,12 @@ export interface SnapMsg {
   baseTick?: number;
   entities: EntitySnapshot[];
   playerCount: number;
+  /** Time of day in [0,1): 0 = midnight, 0.5 = noon. Derived from the server clock. */
+  timeOfDay: number;
 }
+
+/** Length of a full in-world day/night cycle, in ms. Shared so clients can interpolate between snapshots. */
+export const DAY_CYCLE_MS = 600_000; // 10 minutes
 
 export interface EventMsg {
   type: "event";

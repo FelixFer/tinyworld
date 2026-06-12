@@ -12,7 +12,7 @@ import type {
   SnapMsg,
   WelcomeMsg,
 } from "@tinyworld/shared";
-import { entityToSnapshot } from "@tinyworld/shared";
+import { DAY_CYCLE_MS, entityToSnapshot } from "@tinyworld/shared";
 import { VILLAGE_MAP } from "@tinyworld/world";
 import type uWS from "uWebSockets.js";
 import uWSLib from "uWebSockets.js";
@@ -81,6 +81,7 @@ function broadcastSnapshot(): void {
     baseTick: isKeyframe ? undefined : snapshot.tick - 1,
     entities: activeEntities.map(entityToSnapshot),
     playerCount: activeEntities.length,
+    timeOfDay: (Date.now() % DAY_CYCLE_MS) / DAY_CYCLE_MS,
   };
 
   sendToAll(msg);
