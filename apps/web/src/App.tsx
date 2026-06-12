@@ -60,11 +60,7 @@ export default function App() {
   }, []);
 
   const label =
-    status === "disconnected"
-      ? "disconnected"
-      : ping !== null
-        ? `ping: ${ping} ms`
-        : "connecting…";
+    status === "disconnected" ? "disconnected" : ping !== null ? `ping: ${ping} ms` : "connecting…";
 
   const openExhibit = openExhibitId ? EXHIBITS.find((e) => e.id === openExhibitId) : undefined;
   const nearExhibit = nearExhibitId ? EXHIBITS.find((e) => e.id === nearExhibitId) : undefined;

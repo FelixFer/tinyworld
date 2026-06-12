@@ -19,9 +19,11 @@ export function ExhibitModal({ exhibit, playerCount, onClose }: ExhibitModalProp
   const paragraphs = exhibit.body.split("\n\n");
 
   return (
-    // biome-ignore lint/a11y/useKeyWithClickEvents: Escape-to-close is handled globally in App.
+    // biome-ignore lint/a11y/useKeyWithClickEvents: backdrop click is a convenience; Esc (handled in App) and the close button provide keyboard access.
     <div
-      onClick={onClose}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
       style={{
         position: "absolute",
         inset: 0,
@@ -32,11 +34,11 @@ export function ExhibitModal({ exhibit, playerCount, onClose }: ExhibitModalProp
         padding: 16,
       }}
     >
+      {/* biome-ignore lint/a11y/useSemanticElements: this modal manages its own focus; a native <dialog> would impose its own focus/backdrop behavior. */}
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        onClick={(e) => e.stopPropagation()}
         style={{
           background: "#22223b",
           color: "#e8e8f0",
@@ -51,7 +53,12 @@ export function ExhibitModal({ exhibit, playerCount, onClose }: ExhibitModalProp
         }}
       >
         <div
-          style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}
+          style={{
+            display: "flex",
+            alignItems: "flex-start",
+            justifyContent: "space-between",
+            gap: 12,
+          }}
         >
           <h2 id={titleId} style={{ fontSize: 20, margin: 0, lineHeight: 1.25 }}>
             {exhibit.title}
