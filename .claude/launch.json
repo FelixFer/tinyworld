@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "tinyworld",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["apps/server/dist/index.js"],
+      "autoPort": true,
+      "port": 3000
+    }
+  ]
+}

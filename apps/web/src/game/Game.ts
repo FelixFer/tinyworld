@@ -3,6 +3,7 @@ import { CollisionGrid, VILLAGE_MAP } from "@tinyworld/world";
 import { Application } from "pixi.js";
 import { createSocket } from "../net/socket.js";
 import { Camera } from "./Camera.js";
+import { ExhibitMarkers } from "./Exhibits.js";
 import { createInput } from "./Input.js";
 import { LocalPlayer } from "./LocalPlayer.js";
 import { MapRenderer } from "./MapRenderer.js";
@@ -13,10 +14,18 @@ export interface GameInstance {
   destroy: () => void;
 }
 
+export interface GameCallbacks {
+  onPlayerCount?: (count: number) => void;
+  onNearExhibit?: (id: string | null) => void;
+  onPing?: (ms: number) => void;
+  onStatus?: (status: "connected" | "disconnected") => void;
+}
+
 export async function initGame(
   container: HTMLElement,
-  onPlayerCount?: (count: number) => void,
+  callbacks: GameCallbacks = {},
 ): Promise<GameInstance> {
+  const { onPlayerCount, onNearExhibit, onPing, onStatus } = callbacks;
   const app = new Application();
 
   await app.init({
@@ -30,7 +39,9 @@ export async function initGame(
   container.appendChild(app.canvas);
 
   const mapRenderer = new MapRenderer(VILLAGE_MAP);
+  const exhibitMarkers = new ExhibitMarkers();
   const collision = new CollisionGrid(VILLAGE_MAP);
+  let lastNearId: string | null = null;
   const camera = new Camera(
     app.screen.width,
     app.screen.height,
@@ -52,6 +63,7 @@ export async function initGame(
   const socket = createSocket({
     onPing: (ms) => {
       serverTimeOffset = ms / 2;
+      onPing?.(ms);
     },
     onOpen: () => {
       // Send any stored reconnect token so the server can rebind our avatar.
@@ -62,8 +74,11 @@ export async function initGame(
         // localStorage may be unavailable (private mode, etc.)
       }
       socket.sendHello(undefined, storedToken);
+      onStatus?.("connected");
     },
-    onClose: () => {},
+    onClose: () => {
+      onStatus?.("disconnected");
+    },
     onWelcome: (msg: WelcomeMsg) => {
       // Store token for reconnection
       try {
@@ -155,6 +170,7 @@ export async function initGame(
   const input = createInput();
 
   camera.container.addChild(mapRenderer.container);
+  camera.container.addChild(exhibitMarkers.container);
   app.stage.addChild(camera.container);
 
   app.ticker.add(() => {
@@ -163,11 +179,17 @@ export async function initGame(
 
     if (localPlayer) {
       localPlayer.update(dt, input, collision, socket.sendInput);
-      camera.follow(
-        localPlayer.getEntity().x + VILLAGE_MAP.tileSize / 2,
-        localPlayer.getEntity().y + VILLAGE_MAP.tileSize / 2,
-        dt,
-      );
+      const half = VILLAGE_MAP.tileSize / 2;
+      const px = localPlayer.getEntity().x + half;
+      const py = localPlayer.getEntity().y + half;
+      camera.follow(px, py, dt);
+
+      // Report the nearest interactable exhibit so the UI can prompt / open it.
+      const near = exhibitMarkers.nearest(px, py)?.id ?? null;
+      if (near !== lastNearId) {
+        lastNearId = near;
+        onNearExhibit?.(near);
+      }
     }
 
     for (const remote of remoteEntities.values()) {
