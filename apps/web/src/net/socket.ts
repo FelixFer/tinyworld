@@ -1,4 +1,14 @@
-import type { PingMsg, PongMsg, ServerMsg } from "@tinyworld/shared";
+import type {
+  ClientMsg,
+  Dir,
+  EventMsg,
+  InputMsg,
+  PingMsg,
+  PongMsg,
+  ServerMsg,
+  SnapMsg,
+  WelcomeMsg,
+} from "@tinyworld/shared";
 
 const WS_URL = import.meta.env.DEV
   ? "ws://localhost:3000/ws"
@@ -6,12 +16,17 @@ const WS_URL = import.meta.env.DEV
 
 export interface SocketHandle {
   close: () => void;
+  sendInput: (seq: number, dt: number, dx: number, dy: number) => void;
+  sendHello: (name?: string) => void;
 }
 
 interface SocketOptions {
   onPing: (ms: number) => void;
   onOpen: () => void;
   onClose: () => void;
+  onWelcome: (msg: WelcomeMsg) => void;
+  onSnap: (msg: SnapMsg) => void;
+  onEvent: (msg: EventMsg) => void;
 }
 
 export function createSocket(opts: SocketOptions): SocketHandle {
@@ -34,20 +49,47 @@ export function createSocket(opts: SocketOptions): SocketHandle {
     } catch {
       return;
     }
-    if (msg.type === "pong") {
-      opts.onPing(Date.now() - (msg as PongMsg).t);
+
+    switch (msg.type) {
+      case "pong": {
+        const pong = msg as PongMsg;
+        opts.onPing(Date.now() - pong.t);
+        break;
+      }
+      case "welcome": {
+        opts.onWelcome(msg as WelcomeMsg);
+        break;
+      }
+      case "snap": {
+        opts.onSnap(msg as SnapMsg);
+        break;
+      }
+      case "event": {
+        opts.onEvent(msg as EventMsg);
+        break;
+      }
     }
   });
 
   ws.addEventListener("close", () => {
-    clearInterval(pingInterval);
+    if (pingInterval) clearInterval(pingInterval);
     opts.onClose();
   });
 
   return {
     close: () => {
-      clearInterval(pingInterval);
+      if (pingInterval) clearInterval(pingInterval);
       ws.close();
+    },
+    sendInput: (seq: number, dt: number, dx: number, dy: number) => {
+      if (ws.readyState !== WebSocket.OPEN) return;
+      const msg: InputMsg = { type: "input", seq, dt, dx, dy };
+      ws.send(JSON.stringify(msg));
+    },
+    sendHello: (name?: string) => {
+      if (ws.readyState !== WebSocket.OPEN) return;
+      const msg: ClientMsg = { type: "hello", name };
+      ws.send(JSON.stringify(msg));
     },
   };
 }

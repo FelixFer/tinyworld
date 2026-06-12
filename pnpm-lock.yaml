@@ -20,6 +20,9 @@ importers:
       '@tinyworld/shared':
         specifier: workspace:*
         version: link:../../packages/shared
+      '@tinyworld/world':
+        specifier: workspace:*
+        version: link:../../packages/world
       uWebSockets.js:
         specifier: uNetworking/uWebSockets.js#v20.68.0
         version: https://codeload.github.com/uNetworking/uWebSockets.js/tar.gz/624987739d4da0acb628aaf2a10fc43e7ce27c5c

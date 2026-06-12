@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@tinyworld/shared": "workspace:*",
+    "@tinyworld/world": "workspace:*",
     "uWebSockets.js": "uNetworking/uWebSockets.js#v20.68.0"
   },
   "devDependencies": {

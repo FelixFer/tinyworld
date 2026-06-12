@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { initGame } from "./game/Game.js";
-import { createSocket } from "./net/socket.js";
 
 type ConnStatus = "connecting" | "connected" | "disconnected";
+
+// Module-level guard to prevent React StrictMode double-mount from creating duplicate games
+let gameInitialized = false;
 
 export default function App() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -10,23 +12,24 @@ export default function App() {
   const [status, setStatus] = useState<ConnStatus>("connecting");
 
   useEffect(() => {
+    if (gameInitialized) return;
+    gameInitialized = true;
+
     const el = containerRef.current;
     if (!el) return;
+
     let cleanup: (() => void) | undefined;
     (async () => {
       const game = await initGame(el);
-      const socket = createSocket({
-        onPing: (ms) => setPing(ms),
-        onOpen: () => setStatus("connected"),
-        onClose: () => setStatus("disconnected"),
-      });
       cleanup = () => {
-        socket.close();
         game.destroy();
       };
+      setStatus("connected");
     })().catch(console.error);
 
-    return () => cleanup?.();
+    return () => {
+      cleanup?.();
+    };
   }, []);
 
   const label =

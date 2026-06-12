@@ -1,8 +1,28 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import type { PingMsg, ServerMsg } from "@tinyworld/shared";
-import uWS from "uWebSockets.js";
+import type {
+  ClientMsg,
+  EventMsg,
+  HelloMsg,
+  InputMsg,
+  PingMsg,
+  PongMsg,
+  ServerMsg,
+  SnapMsg,
+  WelcomeMsg,
+} from "@tinyworld/shared";
+import { VILLAGE_MAP } from "@tinyworld/world";
+import type uWS from "uWebSockets.js";
+import uWSLib from "uWebSockets.js";
+import { ClientTracker } from "./game/Client.js";
+import { ServerGame } from "./game/Game.js";
+import { generateName } from "./game/Names.js";
+import { SnapshotManager } from "./game/Snapshot.js";
+
+interface ClientWebSocket extends uWS.WebSocket<unknown> {
+  clientId?: string;
+}
 
 const PORT = Number(process.env.PORT) || 3000;
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
@@ -21,40 +41,197 @@ const MIME: Record<string, string> = {
   ".json": "application/json",
 };
 
-const app = uWS.App();
+const game = new ServerGame();
+const clients = new ClientTracker();
+const snapshots = new SnapshotManager();
+const connectedWebSockets = new Set<ClientWebSocket>();
+
+game.start();
+
+const app = uWSLib.App();
+
+function sendToAll(msg: ServerMsg, excludeWs?: ClientWebSocket): void {
+  const json = JSON.stringify(msg);
+  for (const ws of connectedWebSockets) {
+    if (ws !== excludeWs) {
+      ws.send(json, false);
+    }
+  }
+}
+
+function broadcastSnapshot(): void {
+  const { snapshot, isKeyframe } = snapshots.generateSnapshot(game);
+
+  const msg: SnapMsg = {
+    type: "snap",
+    tick: snapshot.tick,
+    baseTick: isKeyframe ? undefined : snapshot.tick - 1,
+    entities: snapshot.entities,
+  };
+
+  sendToAll(msg);
+}
+
+setInterval(broadcastSnapshot, 50);
 
 app
   .get("/healthz", (res) => {
-    res.writeHeader("Content-Type", "application/json").end(JSON.stringify({ ok: true }));
+    res.writeHeader("Content-Type", "application/json").end(
+      JSON.stringify({
+        ok: true,
+        entities: game.entities.size,
+        tick: game.currentTick,
+      }),
+    );
   })
   .ws("/ws", {
     compression: 0,
     maxPayloadLength: 16 * 1024,
-    idleTimeout: 60,
+    idleTimeout: 10,
 
-    open(_ws) {
-      console.log("client connected");
+    open(ws) {
+      const clientId = Math.random().toString(36).slice(2, 10);
+      const name = generateName();
+      const spawnX = VILLAGE_MAP.spawn.x + (Math.random() - 0.5) * 48;
+      const spawnY = VILLAGE_MAP.spawn.y + (Math.random() - 0.5) * 48;
+
+      (ws as ClientWebSocket).clientId = clientId;
+
+      // Clean up orphaned entities (entities without active WebSocket connections)
+      const activeClientIds = new Set<string>();
+      for (const existingWs of connectedWebSockets) {
+        const existingId = (existingWs as ClientWebSocket).clientId;
+        if (existingId) {
+          activeClientIds.add(existingId);
+        }
+      }
+
+      for (const [entityId, entity] of game.entities) {
+        if (!activeClientIds.has(entityId)) {
+          console.log(`Cleaning up orphaned entity: ${entityId} (${entity.name})`);
+          game.removeEntity(entityId);
+          clients.removeClient(entityId);
+        }
+      }
+
+      connectedWebSockets.add(ws);
+      game.addEntity(clientId, spawnX, spawnY, name);
+      clients.addClient(clientId, clientId);
+
+      console.log(`Entity count after add: ${game.entities.size}`);
+      console.log(
+        `All entities: ${Array.from(game.entities.values())
+          .map((e) => `${e.id}(${e.name})`)
+          .join(", ")}`,
+      );
+
+      const welcome: WelcomeMsg = {
+        type: "welcome",
+        selfId: clientId,
+        mapVersion: 1,
+        snapshot: {
+          tick: game.currentTick,
+          entities: Array.from(game.entities.values()).map((e) => ({
+            id: e.id,
+            x: e.x,
+            y: e.y,
+            dir: e.dir,
+            name: e.name,
+          })),
+        },
+      };
+
+      ws.send(JSON.stringify(welcome), false);
+
+      const joinEvent: EventMsg = {
+        type: "event",
+        kind: "join",
+        payload: { id: clientId, name },
+      };
+      sendToAll(joinEvent, ws);
+
+      console.log(`client connected: ${clientId} (${name})`);
     },
 
     message(ws, message) {
-      let msg: Record<string, unknown>;
+      const clientId = (ws as ClientWebSocket).clientId;
+      if (!clientId) return;
+
+      let msg: ClientMsg;
       try {
-        msg = JSON.parse(Buffer.from(message).toString());
+        msg = JSON.parse(Buffer.from(message).toString()) as ClientMsg;
       } catch {
         return;
       }
-      if (msg.type === "ping") {
-        const pong: ServerMsg = {
-          type: "pong",
-          t: (msg as unknown as PingMsg).t,
-          serverTime: Date.now(),
-        };
-        ws.send(JSON.stringify(pong), false);
+
+      switch (msg.type) {
+        case "hello": {
+          const hello = msg as HelloMsg;
+          const serverEntity = game.getEntity(clientId);
+          if (serverEntity && hello.name) {
+            serverEntity.name = hello.name;
+          }
+          break;
+        }
+
+        case "input": {
+          const input = msg as InputMsg;
+          if (!clients.canAcceptInput(clientId)) return;
+
+          const serverEntity = game.getEntity(clientId);
+          if (serverEntity) {
+            serverEntity.queueInput({
+              entityId: clientId,
+              seq: input.seq,
+              dt: input.dt,
+              dx: input.dx,
+              dy: input.dy,
+            });
+            clients.updateLastInputSeq(clientId, input.seq);
+          }
+          break;
+        }
+
+        case "ping": {
+          const ping = msg as PingMsg;
+          const pong: PongMsg = {
+            type: "pong",
+            t: ping.t,
+            serverTime: Date.now(),
+          };
+          ws.send(JSON.stringify(pong), false);
+          clients.updatePing(clientId, Date.now() - ping.t);
+          break;
+        }
       }
     },
 
-    close(_ws) {
-      console.log("client disconnected");
+    close(ws) {
+      connectedWebSockets.delete(ws);
+
+      const clientId = (ws as ClientWebSocket).clientId;
+      if (clientId) {
+        game.removeEntity(clientId);
+        clients.removeClient(clientId);
+
+        console.log(`Entity count after remove: ${game.entities.size}`);
+        console.log(
+          `Remaining entities: ${
+            Array.from(game.entities.values())
+              .map((e) => `${e.id}(${e.name})`)
+              .join(", ") || "none"
+          }`,
+        );
+
+        const leaveEvent: EventMsg = {
+          type: "event",
+          kind: "leave",
+          payload: { id: clientId },
+        };
+        sendToAll(leaveEvent);
+
+        console.log(`client disconnected: ${clientId}`);
+      }
     },
   })
   .get("/*", (res, req) => {
@@ -66,7 +243,6 @@ app
       const data = readFileSync(filePath);
       res.writeHeader("Content-Type", MIME[ext] ?? "application/octet-stream").end(data);
     } catch {
-      // SPA fallback
       try {
         const data = readFileSync(join(PUBLIC_DIR, "index.html"));
         res.writeHeader("Content-Type", "text/html; charset=utf-8").end(data);
