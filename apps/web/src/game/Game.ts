@@ -1,9 +1,8 @@
 import type { Dir, EventMsg, SnapMsg, WelcomeMsg } from "@tinyworld/shared";
-import { VILLAGE_MAP } from "@tinyworld/world";
+import { CollisionGrid, VILLAGE_MAP } from "@tinyworld/world";
 import { Application } from "pixi.js";
 import { createSocket } from "../net/socket.js";
 import { Camera } from "./Camera.js";
-import { CollisionGrid } from "./Collision.js";
 import { createInput } from "./Input.js";
 import { LocalPlayer } from "./LocalPlayer.js";
 import { MapRenderer } from "./MapRenderer.js";

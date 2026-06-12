@@ -15,9 +15,11 @@ WORKDIR /app
 
 COPY --from=builder /app/package.json /app/pnpm-workspace.yaml ./
 COPY --from=builder /app/packages/shared/package.json ./packages/shared/
+COPY --from=builder /app/packages/world/package.json ./packages/world/
 COPY --from=builder /app/apps/server/package.json ./apps/server/
 
 COPY --from=builder /app/packages/shared/dist ./packages/shared/dist
+COPY --from=builder /app/packages/world/dist ./packages/world/dist
 COPY --from=builder /app/apps/server/dist ./apps/server/dist
 COPY --from=builder /app/apps/web/dist ./public
 

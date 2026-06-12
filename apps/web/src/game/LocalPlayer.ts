@@ -1,12 +1,10 @@
-import type { Dir, EntitySnapshot } from "@tinyworld/shared";
-import { SPEED, createEntity, step } from "@tinyworld/shared";
-import type { Rect } from "@tinyworld/world";
+import type { Dir, EntitySnapshot, SolidTest } from "@tinyworld/shared";
+import { createEntity, step } from "@tinyworld/shared";
+import type { CollisionGrid } from "@tinyworld/world";
 import { Container, Graphics, Text, TextStyle } from "pixi.js";
-import type { CollisionGrid } from "./Collision.js";
 import type { InputState } from "./Input.js";
 
 const TILE = 16;
-const HITBOX = { x: 3, y: 8, width: 10, height: 8 };
 const BODY_SIZE = 12;
 const INPUT_RATE = 30;
 const INPUT_INTERVAL = 1 / INPUT_RATE;
@@ -29,7 +27,6 @@ export class LocalPlayer {
   private animTime = 0;
   private moving = false;
   private accumulator = 0;
-  dir: Dir = "down";
 
   constructor(id: string, x: number, y: number, name: string) {
     this.entityId = id;
@@ -63,16 +60,7 @@ export class LocalPlayer {
 
     this.moving = dx !== 0 || dy !== 0;
 
-    if (this.moving) {
-      if (dx !== 0 && dy !== 0) {
-        this.dir = dx > 0 ? "right" : "left";
-      } else if (Math.abs(dx) > Math.abs(dy)) {
-        this.dir = dx > 0 ? "right" : "left";
-      } else {
-        this.dir = dy > 0 ? "down" : "up";
-      }
-    }
-
+    // Sample input at a fixed rate; keep it for reconciliation replay.
     const now = performance.now() / 1000;
     if (now - this.lastInputTime >= INPUT_INTERVAL) {
       this.inputSeq++;
@@ -81,42 +69,12 @@ export class LocalPlayer {
       this.lastInputTime = now;
     }
 
-    // Fixed timestep accumulator — movement speed is independent of frame rate
+    // Predict movement with the same shared step() the server runs.
+    const isSolid: SolidTest = (rect) => collision.testRect(rect);
     this.accumulator += dt;
-    const stepDt = FIXED_DT;
-    const stepDist = SPEED * stepDt;
-
-    while (this.accumulator >= stepDt) {
-      this.accumulator -= stepDt;
-
-      const moveX = dx * stepDist;
-      const moveY = dy * stepDist;
-
-      if (moveX !== 0) {
-        const newX = this.entity.x + moveX;
-        const rect: Rect = {
-          x: newX + HITBOX.x,
-          y: this.entity.y + HITBOX.y,
-          width: HITBOX.width,
-          height: HITBOX.height,
-        };
-        if (!collision.testRect(rect)) {
-          this.entity.x = newX;
-        }
-      }
-
-      if (moveY !== 0) {
-        const newY = this.entity.y + moveY;
-        const rect: Rect = {
-          x: this.entity.x + HITBOX.x,
-          y: newY + HITBOX.y,
-          width: HITBOX.width,
-          height: HITBOX.height,
-        };
-        if (!collision.testRect(rect)) {
-          this.entity.y = newY;
-        }
-      }
+    while (this.accumulator >= FIXED_DT) {
+      this.accumulator -= FIXED_DT;
+      step(this.entity, { dx, dy, dt: FIXED_DT }, isSolid);
     }
 
     if (this.moving) {
@@ -167,7 +125,7 @@ export class LocalPlayer {
 
     const arrowSize = 3;
     const arrow = new Graphics();
-    switch (this.dir) {
+    switch (this.entity.dir) {
       case "up":
         arrow.moveTo(0, -BODY_SIZE / 2 - 2 + bob);
         arrow.lineTo(-arrowSize, -BODY_SIZE / 2 + 1 + bob);

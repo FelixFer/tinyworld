@@ -1,43 +1,9 @@
-import type { Dir, EntityInput, Steppable } from "@tinyworld/shared";
-import { SPEED, createEntity, step } from "@tinyworld/shared";
+import type { Dir, EntityInput, SolidTest, Steppable } from "@tinyworld/shared";
+import { createEntity, step } from "@tinyworld/shared";
 import { CollisionGrid, VILLAGE_MAP } from "@tinyworld/world";
 
-const HITBOX = { x: 3, y: 8, width: 10, height: 8 };
-
 const collision = new CollisionGrid(VILLAGE_MAP);
-
-function tryMove(entity: Steppable, dx: number, dy: number, dt: number): void {
-  const moveX = dx * SPEED * dt;
-  const moveY = dy * SPEED * dt;
-
-  if (moveX !== 0) {
-    const newX = entity.x + moveX;
-    if (
-      !collision.testRect({
-        x: newX + HITBOX.x,
-        y: entity.y + HITBOX.y,
-        width: HITBOX.width,
-        height: HITBOX.height,
-      })
-    ) {
-      entity.x = newX;
-    }
-  }
-
-  if (moveY !== 0) {
-    const newY = entity.y + moveY;
-    if (
-      !collision.testRect({
-        x: entity.x + HITBOX.x,
-        y: newY + HITBOX.y,
-        width: HITBOX.width,
-        height: HITBOX.height,
-      })
-    ) {
-      entity.y = newY;
-    }
-  }
-}
+const isSolid: SolidTest = (rect) => collision.testRect(rect);
 
 export class ServerEntity implements Steppable {
   id: string;
@@ -97,10 +63,9 @@ export class ServerGame {
       const inputs = serverEntity.getPendingInputs();
       if (inputs.length === 0) continue;
 
-      // Use last input's direction for facing
       const lastInput = inputs[inputs.length - 1];
 
-      // Normalize direction from all inputs
+      // Collapse all inputs received this tick into a single direction.
       let totalDx = 0;
       let totalDy = 0;
       for (const input of inputs) {
@@ -110,19 +75,11 @@ export class ServerGame {
       const normDx = totalDx > 0 ? 1 : totalDx < 0 ? -1 : 0;
       const normDy = totalDy > 0 ? 1 : totalDy < 0 ? -1 : 0;
 
-      if (normDx !== 0 || normDy !== 0) {
-        if (Math.abs(normDx) > Math.abs(normDy)) {
-          serverEntity.dir = normDx > 0 ? "right" : "left";
-        } else {
-          serverEntity.dir = normDy > 0 ? "down" : "up";
-        }
-      }
-
-      // Substep at 1/60 granularity to match client collision accuracy
+      // Substep at 1/60 so server collision matches the client's fixed step.
       const subDt = 1 / 60;
       const steps = Math.max(1, Math.round(this.tickDuration / subDt));
       for (let i = 0; i < steps; i++) {
-        tryMove(serverEntity, normDx, normDy, subDt);
+        step(serverEntity, { dx: normDx, dy: normDy, dt: subDt }, isSolid);
       }
 
       serverEntity.lastInputSeq = lastInput.seq;

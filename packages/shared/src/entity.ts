@@ -17,8 +17,6 @@ export interface EntityInput {
   dy: number;
 }
 
-export const SPEED = 96;
-
 export interface Steppable {
   id: string;
   x: number;
@@ -27,32 +25,84 @@ export interface Steppable {
   lastInputSeq: number;
 }
 
+export interface Rect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+/** Movement speed in pixels per second. */
+export const SPEED = 96;
+
+/** Avatar collision box: offset + size relative to the entity's top-left. */
+export const HITBOX = { x: 3, y: 8, width: 10, height: 8 };
+
+/** Returns true if the given rect overlaps a solid tile. */
+export type SolidTest = (rect: Rect) => boolean;
+
+export interface MoveInput {
+  dx: number;
+  dy: number;
+  dt: number;
+}
+
+/**
+ * Advance one entity by a single input, with axis-separated collision.
+ *
+ * This is THE movement simulation — the client calls it for prediction and the
+ * server calls it for authority, so both agree on the result. Keep it pure:
+ * it mutates only `state`, and all map knowledge arrives via `isSolid`.
+ */
 export function step(
-  entities: Map<string, Steppable>,
-  inputs: EntityInput[],
-  tickDuration: number,
+  state: { x: number; y: number; dir: Dir },
+  input: MoveInput,
+  isSolid: SolidTest,
 ): void {
-  for (const input of inputs) {
-    const entity = entities.get(input.entityId);
-    if (!entity) continue;
+  // Facing follows the raw input — horizontal takes priority on a diagonal.
+  if (input.dx !== 0) {
+    state.dir = input.dx > 0 ? "right" : "left";
+  } else if (input.dy !== 0) {
+    state.dir = input.dy > 0 ? "down" : "up";
+  }
 
-    const dx = input.dx;
-    const dy = input.dy;
+  // Normalize diagonals so speed is constant in every direction.
+  let dx = input.dx;
+  let dy = input.dy;
+  if (dx !== 0 && dy !== 0) {
+    dx *= Math.SQRT1_2;
+    dy *= Math.SQRT1_2;
+  }
 
-    if (dx !== 0 || dy !== 0) {
-      if (Math.abs(dx) > Math.abs(dy)) {
-        entity.dir = dx > 0 ? "right" : "left";
-      } else {
-        entity.dir = dy > 0 ? "down" : "up";
-      }
+  const moveX = dx * SPEED * input.dt;
+  const moveY = dy * SPEED * input.dt;
+
+  if (moveX !== 0) {
+    const newX = state.x + moveX;
+    if (
+      !isSolid({
+        x: newX + HITBOX.x,
+        y: state.y + HITBOX.y,
+        width: HITBOX.width,
+        height: HITBOX.height,
+      })
+    ) {
+      state.x = newX;
     }
+  }
 
-    const moveX = dx * SPEED * input.dt;
-    const moveY = dy * SPEED * input.dt;
-
-    entity.x += moveX;
-    entity.y += moveY;
-    entity.lastInputSeq = input.seq;
+  if (moveY !== 0) {
+    const newY = state.y + moveY;
+    if (
+      !isSolid({
+        x: state.x + HITBOX.x,
+        y: newY + HITBOX.y,
+        width: HITBOX.width,
+        height: HITBOX.height,
+      })
+    ) {
+      state.y = newY;
+    }
   }
 }
 
