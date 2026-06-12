@@ -3,7 +3,7 @@
   "private": true,
   "scripts": {
     "build": "pnpm --filter @tinyworld/shared build && pnpm --filter @tinyworld/world build && pnpm --filter @tinyworld/web build && pnpm --filter @tinyworld/server build",
-    "typecheck": "pnpm --filter @tinyworld/shared build && pnpm -r typecheck",
+    "typecheck": "pnpm --filter @tinyworld/shared build && pnpm --filter @tinyworld/world build && pnpm -r typecheck",
     "lint": "biome check ."
   },
   "devDependencies": {
