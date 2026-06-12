@@ -1,7 +1,8 @@
 import { EXHIBITS } from "@tinyworld/world";
 import { useEffect, useRef, useState } from "react";
-import { initGame } from "./game/Game.js";
+import { type GameInstance, initGame } from "./game/Game.js";
 import { ExhibitModal } from "./ui/ExhibitModal.js";
+import { Joystick } from "./ui/Joystick.js";
 
 type ConnStatus = "connecting" | "connected" | "disconnected";
 
@@ -21,6 +22,11 @@ export default function App() {
   const nearRef = useRef<string | null>(null);
   nearRef.current = nearExhibitId;
 
+  const gameRef = useRef<GameInstance | null>(null);
+  const [isTouch] = useState(
+    () => window.matchMedia?.("(pointer: coarse)").matches || "ontouchstart" in window,
+  );
+
   useEffect(() => {
     if (gameInitialized) return;
     gameInitialized = true;
@@ -36,7 +42,9 @@ export default function App() {
         onPing: setPing,
         onStatus: setStatus,
       });
+      gameRef.current = game;
       cleanup = () => {
+        gameRef.current = null;
         game.destroy();
       };
     })().catch(console.error);
@@ -68,7 +76,16 @@ export default function App() {
 
   return (
     <div style={{ position: "relative", width: "100dvw", height: "100dvh" }}>
-      <div ref={containerRef} style={{ width: "100%", height: "100%" }} />
+      <div
+        ref={containerRef}
+        style={{
+          width: "100%",
+          height: "100%",
+          touchAction: "none",
+          userSelect: "none",
+          WebkitUserSelect: "none",
+        }}
+      />
       <div
         style={{
           position: "absolute",
@@ -106,8 +123,18 @@ export default function App() {
             cursor: "pointer",
           }}
         >
-          Press <strong>E</strong> to view {nearExhibit.label}
+          {isTouch ? (
+            `Tap to view ${nearExhibit.label}`
+          ) : (
+            <>
+              Press <strong>E</strong> to view {nearExhibit.label}
+            </>
+          )}
         </button>
+      )}
+
+      {isTouch && !openExhibit && (
+        <Joystick onMove={(dx, dy) => gameRef.current?.setJoystick(dx, dy)} />
       )}
 
       {openExhibit && (

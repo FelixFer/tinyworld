@@ -2,14 +2,92 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>tinyworld</title>
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+    />
+    <title>Tinyworld by Felix Ferdinand</title>
+    <meta
+      name="description"
+      content="Frontend engineer building web apps with React and TypeScript. My portfolio is a tiny persistent multiplayer world — walk around and explore."
+    />
+    <link
+      rel="canonical"
+      href="https://tinyworldweb-production.up.railway.app/"
+    />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <meta name="theme-color" content="#1a1a2e" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Tinyworld by Felix Ferdinand" />
+    <meta
+      property="og:description"
+      content="My portfolio is a tiny persistent multiplayer world — walk around and explore."
+    />
+    <meta
+      property="og:url"
+      content="https://tinyworldweb-production.up.railway.app/"
+    />
+    <meta
+      property="og:image"
+      content="https://tinyworldweb-production.up.railway.app/og.png"
+    />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Tinyworld by Felix Ferdinand" />
+    <meta
+      name="twitter:description"
+      content="My portfolio is a tiny persistent multiplayer world — walk around and explore."
+    />
+    <meta
+      name="twitter:image"
+      content="https://tinyworldweb-production.up.railway.app/og.png"
+    />
+
     <style>
-      * { margin: 0; padding: 0; box-sizing: border-box; }
-      body { background: #1a1a2e; overflow: hidden; }
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        overscroll-behavior: none;
+      }
+      body {
+        background: #1a1a2e;
+        overflow: hidden;
+      }
+      .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        border: 0;
+      }
     </style>
   </head>
   <body>
+    <a class="sr-only" href="/plain">Plain-text version of this portfolio</a>
+    <noscript>
+      <p
+        style="
+          color: #e8e8f0;
+          padding: 16px;
+          font-family: system-ui, sans-serif;
+        "
+      >
+        This portfolio is an interactive world that needs JavaScript. View the
+        <a href="/plain" style="color: #4ecdc4">plain-text version</a> instead.
+      </p>
+    </noscript>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

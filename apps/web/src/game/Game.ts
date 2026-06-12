@@ -11,8 +11,12 @@ import { RemoteEntity } from "./RemoteEntity.js";
 
 export interface GameInstance {
   app: Application;
+  /** Drive movement from a virtual joystick: normalized dx/dy in [-1, 1], up is negative y. */
+  setJoystick: (dx: number, dy: number) => void;
   destroy: () => void;
 }
+
+const JOY_DEADZONE = 0.3;
 
 export interface GameCallbacks {
   onPlayerCount?: (count: number) => void;
@@ -169,6 +173,13 @@ export async function initGame(
 
   const input = createInput();
 
+  const setJoystick = (dx: number, dy: number) => {
+    input.left = dx < -JOY_DEADZONE;
+    input.right = dx > JOY_DEADZONE;
+    input.up = dy < -JOY_DEADZONE;
+    input.down = dy > JOY_DEADZONE;
+  };
+
   camera.container.addChild(mapRenderer.container);
   camera.container.addChild(exhibitMarkers.container);
   app.stage.addChild(camera.container);
@@ -199,6 +210,7 @@ export async function initGame(
 
   return {
     app,
+    setJoystick,
     destroy: () => {
       socket.close();
       app.renderer.off("resize", onResize);

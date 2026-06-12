@@ -20,6 +20,7 @@ import { ClientTracker } from "./game/Client.js";
 import { type ServerEntity, ServerGame } from "./game/Game.js";
 import { generateName } from "./game/Names.js";
 import { SnapshotManager } from "./game/Snapshot.js";
+import { renderPlainPage } from "./plain.js";
 
 interface ClientWebSocket extends uWS.WebSocket<unknown> {
   clientId?: string;
@@ -46,6 +47,9 @@ const game = new ServerGame();
 const clients = new ClientTracker();
 const snapshots = new SnapshotManager();
 const connectedWebSockets = new Set<ClientWebSocket>();
+
+// Portfolio content is static per deploy — render the plain page once.
+const PLAIN_HTML = renderPlainPage();
 
 game.start();
 
@@ -229,6 +233,9 @@ app
         console.log(`client disconnected: ${clientId}`);
       }
     },
+  })
+  .get("/plain", (res) => {
+    res.writeHeader("Content-Type", "text/html; charset=utf-8").end(PLAIN_HTML);
   })
   .get("/*", (res, req) => {
     const url = req.getUrl();
