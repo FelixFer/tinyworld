@@ -10,6 +10,7 @@ const HITBOX = { x: 3, y: 8, width: 10, height: 8 };
 const BODY_SIZE = 12;
 const INPUT_RATE = 30;
 const INPUT_INTERVAL = 1 / INPUT_RATE;
+const FIXED_DT = 1 / 60; // Fixed timestep for movement (60Hz)
 
 export class LocalPlayer {
   readonly container: Container;
@@ -27,6 +28,7 @@ export class LocalPlayer {
   private pendingInputs: { seq: number; dt: number; dx: number; dy: number }[] = [];
   private animTime = 0;
   private moving = false;
+  private accumulator = 0;
   dir: Dir = "down";
 
   constructor(id: string, x: number, y: number, name: string) {
@@ -71,33 +73,41 @@ export class LocalPlayer {
       this.lastInputTime = now;
     }
 
-    const vel = SPEED * dt;
-    const moveX = dx * vel;
-    const moveY = dy * vel;
+    // Fixed timestep accumulator — movement speed is independent of frame rate
+    this.accumulator += dt;
+    const stepDt = FIXED_DT;
+    const stepDist = SPEED * stepDt;
 
-    if (moveX !== 0) {
-      const newX = this.entity.x + moveX;
-      const rect: Rect = {
-        x: newX + HITBOX.x,
-        y: this.entity.y + HITBOX.y,
-        width: HITBOX.width,
-        height: HITBOX.height,
-      };
-      if (!collision.testRect(rect)) {
-        this.entity.x = newX;
+    while (this.accumulator >= stepDt) {
+      this.accumulator -= stepDt;
+
+      const moveX = dx * stepDist;
+      const moveY = dy * stepDist;
+
+      if (moveX !== 0) {
+        const newX = this.entity.x + moveX;
+        const rect: Rect = {
+          x: newX + HITBOX.x,
+          y: this.entity.y + HITBOX.y,
+          width: HITBOX.width,
+          height: HITBOX.height,
+        };
+        if (!collision.testRect(rect)) {
+          this.entity.x = newX;
+        }
       }
-    }
 
-    if (moveY !== 0) {
-      const newY = this.entity.y + moveY;
-      const rect: Rect = {
-        x: this.entity.x + HITBOX.x,
-        y: newY + HITBOX.y,
-        width: HITBOX.width,
-        height: HITBOX.height,
-      };
-      if (!collision.testRect(rect)) {
-        this.entity.y = newY;
+      if (moveY !== 0) {
+        const newY = this.entity.y + moveY;
+        const rect: Rect = {
+          x: this.entity.x + HITBOX.x,
+          y: newY + HITBOX.y,
+          width: HITBOX.width,
+          height: HITBOX.height,
+        };
+        if (!collision.testRect(rect)) {
+          this.entity.y = newY;
+        }
       }
     }
 
@@ -111,10 +121,25 @@ export class LocalPlayer {
   }
 
   reconcile(snapshot: EntitySnapshot): void {
-    // For M2, we trust client prediction and don't reconcile
-    // This avoids jitter from server-client position mismatches
-    // The server state is used for remote entity interpolation only
     this.entity.dir = snapshot.dir;
+
+    // Only correct position when not actively moving (avoids jitter during gameplay)
+    if (!this.moving) {
+      const dx = snapshot.x - this.entity.x;
+      const dy = snapshot.y - this.entity.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+
+      if (dist > 20) {
+        // Large discrepancy — snap to server position
+        this.entity.x = snapshot.x;
+        this.entity.y = snapshot.y;
+      } else if (dist > 2) {
+        // Small drift — gently nudge toward server position
+        this.entity.x += dx * 0.1;
+        this.entity.y += dy * 0.1;
+      }
+    }
+
     this.render();
   }
 

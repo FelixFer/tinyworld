@@ -92,8 +92,8 @@ app
     open(ws) {
       const clientId = Math.random().toString(36).slice(2, 10);
       const name = generateName();
-      const spawnX = VILLAGE_MAP.spawn.x + (Math.random() - 0.5) * 48;
-      const spawnY = VILLAGE_MAP.spawn.y + (Math.random() - 0.5) * 48;
+      const spawnX = VILLAGE_MAP.spawn.x;
+      const spawnY = VILLAGE_MAP.spawn.y;
 
       (ws as ClientWebSocket).clientId = clientId;
 
