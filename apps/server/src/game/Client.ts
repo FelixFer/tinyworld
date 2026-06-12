@@ -6,7 +6,9 @@ export interface ClientInfo {
   lastInputSeq: number;
 }
 
-const MAX_INPUTS_PER_SECOND = 30;
+// Clients send inputs at up to 30/s; the cap sits above that so legitimate
+// traffic is never dropped and only genuine floods are rejected.
+const MAX_INPUTS_PER_SECOND = 40;
 const INPUT_WINDOW_MS = 1000;
 
 export class ClientTracker {

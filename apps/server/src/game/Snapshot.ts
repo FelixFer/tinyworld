@@ -1,4 +1,5 @@
-import type { EntitySnapshot, Snapshot } from "@tinyworld/shared";
+import type { Snapshot } from "@tinyworld/shared";
+import { entityToSnapshot } from "@tinyworld/shared";
 import type { ServerGame } from "./Game.js";
 
 const KEYFRAME_INTERVAL = 40;
@@ -13,20 +14,9 @@ export class SnapshotManager {
       this.lastKeyframeTick = game.currentTick;
     }
 
-    const entities: EntitySnapshot[] = [];
-    for (const serverEntity of game.entities.values()) {
-      entities.push({
-        id: serverEntity.id,
-        x: Math.round(serverEntity.x * 100) / 100,
-        y: Math.round(serverEntity.y * 100) / 100,
-        dir: serverEntity.dir,
-        name: serverEntity.name,
-      });
-    }
-
     const snapshot: Snapshot = {
       tick: game.currentTick,
-      entities,
+      entities: Array.from(game.entities.values()).map(entityToSnapshot),
     };
 
     this.lastSnapshot = snapshot;

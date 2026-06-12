@@ -61,28 +61,14 @@ export class ServerGame {
 
     for (const serverEntity of this.entities.values()) {
       const inputs = serverEntity.getPendingInputs();
-      if (inputs.length === 0) continue;
 
-      const lastInput = inputs[inputs.length - 1];
-
-      // Collapse all inputs received this tick into a single direction.
-      let totalDx = 0;
-      let totalDy = 0;
+      // Process each input through the same step() the client predicted with,
+      // in order, so the authoritative position matches the client's prediction
+      // and lastInputSeq advances per input for reconciliation.
       for (const input of inputs) {
-        totalDx += input.dx;
-        totalDy += input.dy;
+        step(serverEntity, { dx: input.dx, dy: input.dy, dt: input.dt }, isSolid);
+        serverEntity.lastInputSeq = input.seq;
       }
-      const normDx = totalDx > 0 ? 1 : totalDx < 0 ? -1 : 0;
-      const normDy = totalDy > 0 ? 1 : totalDy < 0 ? -1 : 0;
-
-      // Substep at 1/60 so server collision matches the client's fixed step.
-      const subDt = 1 / 60;
-      const steps = Math.max(1, Math.round(this.tickDuration / subDt));
-      for (let i = 0; i < steps; i++) {
-        step(serverEntity, { dx: normDx, dy: normDy, dt: subDt }, isSolid);
-      }
-
-      serverEntity.lastInputSeq = lastInput.seq;
     }
   }
 

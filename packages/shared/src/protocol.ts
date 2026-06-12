@@ -73,6 +73,8 @@ export interface EntitySnapshot {
   y: number;
   dir: Dir;
   name: string;
+  /** Last client input the server has processed for this entity (reconciliation ack). */
+  lastInputSeq: number;
 }
 
 export interface Snapshot {
@@ -86,6 +88,7 @@ export function entityToSnapshot(entity: {
   y: number;
   dir: Dir;
   name: string;
+  lastInputSeq: number;
 }): EntitySnapshot {
   return {
     id: entity.id,
@@ -93,5 +96,6 @@ export function entityToSnapshot(entity: {
     y: Math.round(entity.y * 100) / 100,
     dir: entity.dir,
     name: entity.name,
+    lastInputSeq: entity.lastInputSeq,
   };
 }

@@ -12,6 +12,7 @@ import type {
   SnapMsg,
   WelcomeMsg,
 } from "@tinyworld/shared";
+import { entityToSnapshot } from "@tinyworld/shared";
 import { VILLAGE_MAP } from "@tinyworld/world";
 import type uWS from "uWebSockets.js";
 import uWSLib from "uWebSockets.js";
@@ -74,13 +75,7 @@ function broadcastSnapshot(): void {
     type: "snap",
     tick: snapshot.tick,
     baseTick: isKeyframe ? undefined : snapshot.tick - 1,
-    entities: activeEntities.map((e) => ({
-      id: e.id,
-      x: e.x,
-      y: e.y,
-      dir: e.dir,
-      name: e.name,
-    })),
+    entities: activeEntities.map(entityToSnapshot),
     playerCount: activeEntities.length,
   };
 
@@ -128,13 +123,7 @@ app
             tick: game.currentTick,
             entities: Array.from(game.entities.values())
               .filter((e) => e.disconnectedAt === 0)
-              .map((e) => ({
-                id: e.id,
-                x: e.x,
-                y: e.y,
-                dir: e.dir,
-                name: e.name,
-              })),
+              .map(entityToSnapshot),
           },
         };
         ws.send(JSON.stringify(welcome), false);
@@ -186,13 +175,7 @@ app
           tick: game.currentTick,
           entities: Array.from(game.entities.values())
             .filter((e) => e.disconnectedAt === 0)
-            .map((e) => ({
-              id: e.id,
-              x: e.x,
-              y: e.y,
-              dir: e.dir,
-              name: e.name,
-            })),
+            .map(entityToSnapshot),
         },
       };
 

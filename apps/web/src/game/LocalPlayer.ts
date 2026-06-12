@@ -7,8 +7,7 @@ import type { InputState } from "./Input.js";
 const TILE = 16;
 const BODY_SIZE = 12;
 const INPUT_RATE = 30;
-const INPUT_INTERVAL = 1 / INPUT_RATE;
-const FIXED_DT = 1 / 60; // Fixed timestep for movement (60Hz)
+const INPUT_INTERVAL = 1 / INPUT_RATE; // movement is predicted + sent at this rate
 
 export class LocalPlayer {
   readonly container: Container;
@@ -22,7 +21,6 @@ export class LocalPlayer {
     lastInputSeq: number;
   };
   private inputSeq = 0;
-  private lastInputTime = 0;
   private pendingInputs: { seq: number; dt: number; dx: number; dy: number }[] = [];
   private animTime = 0;
   private moving = false;
@@ -60,50 +58,47 @@ export class LocalPlayer {
 
     this.moving = dx !== 0 || dy !== 0;
 
-    // Sample input at a fixed rate; keep it for reconciliation replay.
-    const now = performance.now() / 1000;
-    if (now - this.lastInputTime >= INPUT_INTERVAL) {
-      this.inputSeq++;
-      this.pendingInputs.push({ seq: this.inputSeq, dt: INPUT_INTERVAL, dx, dy });
-      sendInput(this.inputSeq, INPUT_INTERVAL, dx, dy);
-      this.lastInputTime = now;
-    }
-
-    // Predict movement with the same shared step() the server runs.
+    // Sample input at a fixed rate. Each sample IS the unit of simulation:
+    // predict it locally, remember it for reconciliation, and send it. The
+    // server runs the same step() on the same inputs, so its authoritative
+    // position matches this prediction.
     const isSolid: SolidTest = (rect) => collision.testRect(rect);
-    this.accumulator += dt;
-    while (this.accumulator >= FIXED_DT) {
-      this.accumulator -= FIXED_DT;
-      step(this.entity, { dx, dy, dt: FIXED_DT }, isSolid);
-    }
-
     if (this.moving) {
+      this.accumulator += dt;
+      while (this.accumulator >= INPUT_INTERVAL) {
+        this.accumulator -= INPUT_INTERVAL;
+        this.inputSeq++;
+        const moveInput = { seq: this.inputSeq, dt: INPUT_INTERVAL, dx, dy };
+        step(this.entity, moveInput, isSolid);
+        this.pendingInputs.push(moveInput);
+        sendInput(moveInput.seq, moveInput.dt, dx, dy);
+      }
       this.animTime += dt * 8;
     } else {
+      // Idle: nothing to predict or send; reset so motion resumes promptly.
+      this.accumulator = 0;
       this.animTime = 0;
     }
 
     this.render();
   }
 
-  reconcile(snapshot: EntitySnapshot): void {
+  /**
+   * Server reconciliation: discard inputs the server has acknowledged, snap to
+   * its authoritative position, then replay the inputs it hasn't processed yet
+   * through the same step(). When prediction was correct this lands back on the
+   * current predicted position, so there is no visible correction.
+   */
+  reconcile(snapshot: EntitySnapshot, collision: CollisionGrid): void {
+    this.pendingInputs = this.pendingInputs.filter((i) => i.seq > snapshot.lastInputSeq);
+
+    this.entity.x = snapshot.x;
+    this.entity.y = snapshot.y;
     this.entity.dir = snapshot.dir;
 
-    // Only correct position when not actively moving (avoids jitter during gameplay)
-    if (!this.moving) {
-      const dx = snapshot.x - this.entity.x;
-      const dy = snapshot.y - this.entity.y;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-
-      if (dist > 20) {
-        // Large discrepancy — snap to server position
-        this.entity.x = snapshot.x;
-        this.entity.y = snapshot.y;
-      } else if (dist > 2) {
-        // Small drift — gently nudge toward server position
-        this.entity.x += dx * 0.1;
-        this.entity.y += dy * 0.1;
-      }
+    const isSolid: SolidTest = (rect) => collision.testRect(rect);
+    for (const input of this.pendingInputs) {
+      step(this.entity, input, isSolid);
     }
 
     this.render();

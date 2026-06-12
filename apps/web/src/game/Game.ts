@@ -104,7 +104,7 @@ export async function initGame(
 
       for (const entity of msg.entities) {
         if (entity.id === localPlayer?.entityId) {
-          localPlayer.reconcile(entity);
+          localPlayer.reconcile(entity, collision);
         } else {
           let remote = remoteEntities.get(entity.id);
           if (!remote) {
