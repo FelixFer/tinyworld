@@ -12,9 +12,11 @@ export interface InputMsg {
   dx: number;
   dy: number;
 }
+export type EmoteKind = "wave" | "heart" | "question" | "bang";
+
 export interface EmoteMsg {
   type: "emote";
-  kind: "wave" | "heart" | "question" | "bang";
+  kind: EmoteKind;
 }
 export interface KickMsg {
   type: "kick";

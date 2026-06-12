@@ -1,6 +1,7 @@
 import type {
   ClientMsg,
   Dir,
+  EmoteKind,
   EventMsg,
   InputMsg,
   PingMsg,
@@ -18,6 +19,7 @@ export interface SocketHandle {
   close: () => void;
   sendInput: (seq: number, dt: number, dx: number, dy: number) => void;
   sendHello: (name?: string, token?: string) => void;
+  sendEmote: (kind: EmoteKind) => void;
 }
 
 interface SocketOptions {
@@ -89,6 +91,11 @@ export function createSocket(opts: SocketOptions): SocketHandle {
     sendHello: (name?: string, token?: string) => {
       if (ws.readyState !== WebSocket.OPEN) return;
       const msg: ClientMsg = { type: "hello", name, token };
+      ws.send(JSON.stringify(msg));
+    },
+    sendEmote: (kind: EmoteKind) => {
+      if (ws.readyState !== WebSocket.OPEN) return;
+      const msg: ClientMsg = { type: "emote", kind };
       ws.send(JSON.stringify(msg));
     },
   };

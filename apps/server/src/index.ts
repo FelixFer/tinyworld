@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type {
   ClientMsg,
+  EmoteMsg,
   EventMsg,
   HelloMsg,
   InputMsg,
@@ -47,6 +48,8 @@ const game = new ServerGame();
 const clients = new ClientTracker();
 const snapshots = new SnapshotManager();
 const connectedWebSockets = new Set<ClientWebSocket>();
+const lastEmoteAt = new Map<string, number>();
+const EMOTE_KINDS = new Set<EmoteMsg["kind"]>(["wave", "heart", "question", "bang"]);
 
 // Portfolio content is static per deploy — render the plain page once.
 const PLAIN_HTML = renderPlainPage();
@@ -199,6 +202,21 @@ app
           break;
         }
 
+        case "emote": {
+          const emote = msg as EmoteMsg;
+          if (!EMOTE_KINDS.has(emote.kind)) break;
+          const now = Date.now();
+          if (now - (lastEmoteAt.get(clientId) ?? 0) < 400) break; // anti-spam cooldown
+          lastEmoteAt.set(clientId, now);
+          const ev: EventMsg = {
+            type: "event",
+            kind: "emote",
+            payload: { id: clientId, kind: emote.kind },
+          };
+          sendToAll(ev);
+          break;
+        }
+
         case "ping": {
           const ping = msg as PingMsg;
           const pong: PongMsg = {
@@ -221,6 +239,7 @@ app
         // Mark as disconnected instead of removing immediately (5s grace period)
         game.markDisconnected(clientId);
         clients.removeClient(clientId);
+        lastEmoteAt.delete(clientId);
 
         console.log(`Entity count after disconnect: ${game.entities.size}`);
 

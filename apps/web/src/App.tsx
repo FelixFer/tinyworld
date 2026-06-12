@@ -1,8 +1,12 @@
+import type { EmoteKind } from "@tinyworld/shared";
 import { EXHIBITS } from "@tinyworld/world";
 import { useEffect, useRef, useState } from "react";
 import { type GameInstance, initGame } from "./game/Game.js";
+import { EmoteBar } from "./ui/EmoteBar.js";
 import { ExhibitModal } from "./ui/ExhibitModal.js";
 import { Joystick } from "./ui/Joystick.js";
+
+const EMOTE_KEYS: EmoteKind[] = ["wave", "heart", "question", "bang"];
 
 type ConnStatus = "connecting" | "connected" | "disconnected";
 
@@ -61,6 +65,8 @@ export default function App() {
         if (nearRef.current) setOpenExhibitId((cur) => cur ?? nearRef.current);
       } else if (e.key === "Escape") {
         setOpenExhibitId(null);
+      } else if (e.key >= "1" && e.key <= "4") {
+        gameRef.current?.sendEmote(EMOTE_KEYS[Number(e.key) - 1]);
       }
     };
     window.addEventListener("keydown", onKey);
@@ -135,6 +141,10 @@ export default function App() {
 
       {isTouch && !openExhibit && (
         <Joystick onMove={(dx, dy) => gameRef.current?.setJoystick(dx, dy)} />
+      )}
+
+      {!openExhibit && (
+        <EmoteBar onEmote={(k) => gameRef.current?.sendEmote(k)} showKeys={!isTouch} />
       )}
 
       {openExhibit && (

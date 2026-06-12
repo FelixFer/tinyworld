@@ -1,9 +1,10 @@
-import type { Dir, EventMsg, SnapMsg, WelcomeMsg } from "@tinyworld/shared";
+import type { Dir, EmoteKind, EventMsg, SnapMsg, WelcomeMsg } from "@tinyworld/shared";
 import { CollisionGrid, VILLAGE_MAP } from "@tinyworld/world";
 import { Application } from "pixi.js";
 import { createSocket } from "../net/socket.js";
 import { Camera } from "./Camera.js";
 import { DayNight } from "./DayNight.js";
+import { Emotes } from "./Emotes.js";
 import { ExhibitMarkers } from "./Exhibits.js";
 import { createInput } from "./Input.js";
 import { LocalPlayer } from "./LocalPlayer.js";
@@ -14,6 +15,8 @@ export interface GameInstance {
   app: Application;
   /** Drive movement from a virtual joystick: normalized dx/dy in [-1, 1], up is negative y. */
   setJoystick: (dx: number, dy: number) => void;
+  /** Broadcast an emote from the local player. */
+  sendEmote: (kind: EmoteKind) => void;
   destroy: () => void;
 }
 
@@ -45,6 +48,8 @@ export async function initGame(
 
   const mapRenderer = new MapRenderer(VILLAGE_MAP);
   const exhibitMarkers = new ExhibitMarkers();
+  const emotes = new Emotes();
+  emotes.container.zIndex = 1000; // always above avatars
   const dayNight = new DayNight();
   dayNight.resize(app.screen.width, app.screen.height);
   const collision = new CollisionGrid(VILLAGE_MAP);
@@ -172,6 +177,17 @@ export async function initGame(
           remote.container.destroy();
           remoteEntities.delete(payload.id);
         }
+      } else if (msg.kind === "emote") {
+        const payload = msg.payload as { id: string; kind: EmoteKind };
+        const lp = localPlayer;
+        if (lp && payload.id === lp.entityId) {
+          emotes.spawn(payload.kind, () => ({ x: lp.container.x, y: lp.container.y }));
+        } else {
+          const remote = remoteEntities.get(payload.id);
+          if (remote) {
+            emotes.spawn(payload.kind, () => ({ x: remote.container.x, y: remote.container.y }));
+          }
+        }
       }
     },
   });
@@ -185,8 +201,10 @@ export async function initGame(
     input.down = dy > JOY_DEADZONE;
   };
 
+  camera.container.sortableChildren = true;
   camera.container.addChild(mapRenderer.container);
   camera.container.addChild(exhibitMarkers.container);
+  camera.container.addChild(emotes.container);
   app.stage.addChild(camera.container);
   app.stage.addChild(dayNight.container); // screen-space tint, above the world
 
@@ -213,12 +231,14 @@ export async function initGame(
       remote.update(serverTime, dt);
     }
 
+    emotes.update(dt);
     dayNight.update(dt);
   });
 
   return {
     app,
     setJoystick,
+    sendEmote: socket.sendEmote,
     destroy: () => {
       socket.close();
       app.renderer.off("resize", onResize);
