@@ -53,7 +53,16 @@ export async function initGame(
     onPing: (ms) => {
       serverTimeOffset = ms / 2;
     },
-    onOpen: () => {},
+    onOpen: () => {
+      // Send any stored reconnect token so the server can rebind our avatar.
+      let storedToken: string | undefined;
+      try {
+        storedToken = localStorage.getItem("tinyworld_token") ?? undefined;
+      } catch {
+        // localStorage may be unavailable (private mode, etc.)
+      }
+      socket.sendHello(undefined, storedToken);
+    },
     onClose: () => {},
     onWelcome: (msg: WelcomeMsg) => {
       // Store token for reconnection

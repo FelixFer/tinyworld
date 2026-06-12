@@ -17,7 +17,7 @@ import { VILLAGE_MAP } from "@tinyworld/world";
 import type uWS from "uWebSockets.js";
 import uWSLib from "uWebSockets.js";
 import { ClientTracker } from "./game/Client.js";
-import { ServerGame } from "./game/Game.js";
+import { type ServerEntity, ServerGame } from "./game/Game.js";
 import { generateName } from "./game/Names.js";
 import { SnapshotManager } from "./game/Snapshot.js";
 
@@ -101,94 +101,11 @@ app
 
     open(ws) {
       const clientId = Math.random().toString(36).slice(2, 10);
-
-      // Check for reconnect token in the URL query string
-      // (sent on first hello message; we assign tokens here)
-      const token = Math.random().toString(36).slice(2);
-
-      // Check if there's an existing disconnected entity we can reconnect
-      const existing = game.findEntityByToken(token);
-      if (existing && existing.disconnectedAt > 0) {
-        console.log(`Reconnecting entity: ${existing.id} -> ${clientId} (${existing.name})`);
-        game.reconnectEntity(existing, clientId);
-        clients.addClient(clientId, clientId);
-        (ws as ClientWebSocket).clientId = clientId;
-
-        const welcome: WelcomeMsg = {
-          type: "welcome",
-          selfId: clientId,
-          token,
-          mapVersion: 1,
-          snapshot: {
-            tick: game.currentTick,
-            entities: Array.from(game.entities.values())
-              .filter((e) => e.disconnectedAt === 0)
-              .map(entityToSnapshot),
-          },
-        };
-        ws.send(JSON.stringify(welcome), false);
-        connectedWebSockets.add(ws);
-        console.log(`Entity count after reconnect: ${game.entities.size}`);
-        return;
-      }
-
-      const name = generateName();
-      const spawnX = VILLAGE_MAP.spawn.x;
-      const spawnY = VILLAGE_MAP.spawn.y;
-
       (ws as ClientWebSocket).clientId = clientId;
-
-      // Clean up orphaned entities (entities without active WebSocket connections)
-      const activeClientIds = new Set<string>();
-      for (const existingWs of connectedWebSockets) {
-        const existingId = (existingWs as ClientWebSocket).clientId;
-        if (existingId) {
-          activeClientIds.add(existingId);
-        }
-      }
-
-      for (const [entityId, entity] of game.entities) {
-        if (!activeClientIds.has(entityId) && entity.disconnectedAt === 0) {
-          console.log(`Cleaning up orphaned entity: ${entityId} (${entity.name})`);
-          game.removeEntity(entityId);
-          clients.removeClient(entityId);
-        }
-      }
-
       connectedWebSockets.add(ws);
-      game.addEntity(clientId, spawnX, spawnY, name, token);
-      clients.addClient(clientId, clientId);
-
-      console.log(`Entity count after add: ${game.entities.size}`);
-      console.log(
-        `All entities: ${Array.from(game.entities.values())
-          .map((e) => `${e.id}(${e.name})`)
-          .join(", ")}`,
-      );
-
-      const welcome: WelcomeMsg = {
-        type: "welcome",
-        selfId: clientId,
-        token,
-        mapVersion: 1,
-        snapshot: {
-          tick: game.currentTick,
-          entities: Array.from(game.entities.values())
-            .filter((e) => e.disconnectedAt === 0)
-            .map(entityToSnapshot),
-        },
-      };
-
-      ws.send(JSON.stringify(welcome), false);
-
-      const joinEvent: EventMsg = {
-        type: "event",
-        kind: "join",
-        payload: { id: clientId, name },
-      };
-      sendToAll(joinEvent, ws);
-
-      console.log(`client connected: ${clientId} (${name})`);
+      // The entity is created when the client sends `hello` — that message
+      // carries any reconnect token, which lets us rebind a disconnected
+      // entity instead of always spawning a fresh one.
     },
 
     message(ws, message) {
@@ -205,10 +122,57 @@ app
       switch (msg.type) {
         case "hello": {
           const hello = msg as HelloMsg;
-          const serverEntity = game.getEntity(clientId);
-          if (serverEntity && hello.name) {
-            serverEntity.name = hello.name;
+
+          // Already joined on this connection — just allow a name update.
+          const current = game.getEntity(clientId);
+          if (current) {
+            if (hello.name) current.name = hello.name;
+            break;
           }
+
+          // Reconnect if the token matches a disconnected entity still in grace;
+          // otherwise spawn a fresh entity with a new token.
+          const previous = hello.token ? game.findEntityByToken(hello.token) : undefined;
+          let entity: ServerEntity;
+          let token: string;
+          if (previous && previous.disconnectedAt > 0) {
+            game.reconnectEntity(previous, clientId);
+            entity = previous;
+            token = previous.token;
+            console.log(`reconnect: ${entity.name} -> ${clientId}`);
+          } else {
+            token = Math.random().toString(36).slice(2);
+            entity = game.addEntity(
+              clientId,
+              VILLAGE_MAP.spawn.x,
+              VILLAGE_MAP.spawn.y,
+              hello.name ?? generateName(),
+              token,
+            );
+            console.log(`join: ${entity.name} (${clientId})`);
+          }
+          clients.addClient(clientId, clientId);
+
+          const welcome: WelcomeMsg = {
+            type: "welcome",
+            selfId: clientId,
+            token,
+            mapVersion: 1,
+            snapshot: {
+              tick: game.currentTick,
+              entities: Array.from(game.entities.values())
+                .filter((e) => e.disconnectedAt === 0)
+                .map(entityToSnapshot),
+            },
+          };
+          ws.send(JSON.stringify(welcome), false);
+
+          const joinEvent: EventMsg = {
+            type: "event",
+            kind: "join",
+            payload: { id: clientId, name: entity.name },
+          };
+          sendToAll(joinEvent, ws);
           break;
         }
 
