@@ -1,0 +1,13 @@
+{
+  "name": "tinyworld",
+  "private": true,
+  "scripts": {
+    "build": "pnpm --filter @tinyworld/shared build && pnpm --filter @tinyworld/web build && pnpm --filter @tinyworld/server build",
+    "typecheck": "pnpm -r typecheck",
+    "lint": "biome check ."
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^1.9.4",
+    "typescript": "^5.7.0"
+  }
+}
