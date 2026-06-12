@@ -5,3 +5,5 @@ allowBuilds:
   '@biomejs/biome': true
   esbuild: true
   'uWebSockets.js': true
+  uWebSockets.js@https://codeload.github.com/uNetworking/uWebSockets.js/tar.gz/624987739d4da0acb628aaf2a10fc43e7ce27c5c: true
+  uWebSockets.js@https://codeload.github.com/uNetworking/uWebSockets.js/tar.gz/8fa05571bf6ea95be8966ad313d9d39453e381ae: true

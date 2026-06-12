@@ -21,8 +21,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/shared
       uWebSockets.js:
-        specifier: uNetworking/uWebSockets.js#v20.44.0
-        version: https://codeload.github.com/uNetworking/uWebSockets.js/tar.gz/8fa05571bf6ea95be8966ad313d9d39453e381ae
+        specifier: uNetworking/uWebSockets.js#v20.68.0
+        version: https://codeload.github.com/uNetworking/uWebSockets.js/tar.gz/624987739d4da0acb628aaf2a10fc43e7ce27c5c
     devDependencies:
       '@types/node':
         specifier: ^22.10.0
@@ -904,9 +904,9 @@ packages:
     engines: {node: '>=14.17'}
     hasBin: true
 
-  uWebSockets.js@https://codeload.github.com/uNetworking/uWebSockets.js/tar.gz/8fa05571bf6ea95be8966ad313d9d39453e381ae:
-    resolution: {gitHosted: true, integrity: sha512-RDF16Ah1Va0xmBSb3bfANJAdydt7QrXAGxoj8Ghm3zh4mrL0+y0o70CBPJ0JZRtsub3bswsISiVXrqDp5yWxUQ==, tarball: https://codeload.github.com/uNetworking/uWebSockets.js/tar.gz/8fa05571bf6ea95be8966ad313d9d39453e381ae}
-    version: 20.44.0
+  uWebSockets.js@https://codeload.github.com/uNetworking/uWebSockets.js/tar.gz/624987739d4da0acb628aaf2a10fc43e7ce27c5c:
+    resolution: {gitHosted: true, integrity: sha512-BcXO02DANWelQzJyMd2G875nBeZDDYHZxqE7uOH9cAsf62Ur3hl5+4crdqBWvFF+DzbUxJoswPqvE3i2aAEZ1g==, tarball: https://codeload.github.com/uNetworking/uWebSockets.js/tar.gz/624987739d4da0acb628aaf2a10fc43e7ce27c5c}
+    version: 20.68.0
 
   undici-types@6.21.0:
     resolution: {integrity: sha512-iwDZqg0QAGrg9Rav5H4n0M64c3mkR59cJ6wQp+7C4nI0gsmExaedaYLNO44eT4AtBBwjbTiGPMlt2Md0T9H9JQ==}
@@ -1633,7 +1633,7 @@ snapshots:
 
   typescript@5.9.3: {}
 
-  uWebSockets.js@https://codeload.github.com/uNetworking/uWebSockets.js/tar.gz/8fa05571bf6ea95be8966ad313d9d39453e381ae: {}
+  uWebSockets.js@https://codeload.github.com/uNetworking/uWebSockets.js/tar.gz/624987739d4da0acb628aaf2a10fc43e7ce27c5c: {}
 
   undici-types@6.21.0: {}
 
