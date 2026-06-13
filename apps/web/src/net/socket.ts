@@ -4,6 +4,8 @@ import type {
   EmoteKind,
   EventMsg,
   InputMsg,
+  Note,
+  NotesMsg,
   PingMsg,
   PongMsg,
   ServerMsg,
@@ -20,6 +22,8 @@ export interface SocketHandle {
   sendInput: (seq: number, dt: number, dx: number, dy: number) => void;
   sendHello: (name?: string, token?: string) => void;
   sendEmote: (kind: EmoteKind) => void;
+  sendNote: (text: string) => void;
+  sendReport: (noteId: number) => void;
 }
 
 interface SocketOptions {
@@ -29,6 +33,7 @@ interface SocketOptions {
   onWelcome: (msg: WelcomeMsg) => void;
   onSnap: (msg: SnapMsg) => void;
   onEvent: (msg: EventMsg) => void;
+  onNotes: (notes: Note[]) => void;
 }
 
 export function createSocket(opts: SocketOptions): SocketHandle {
@@ -70,6 +75,10 @@ export function createSocket(opts: SocketOptions): SocketHandle {
         opts.onEvent(msg as EventMsg);
         break;
       }
+      case "notes": {
+        opts.onNotes((msg as NotesMsg).notes);
+        break;
+      }
     }
   });
 
@@ -96,6 +105,17 @@ export function createSocket(opts: SocketOptions): SocketHandle {
     sendEmote: (kind: EmoteKind) => {
       if (ws.readyState !== WebSocket.OPEN) return;
       const msg: ClientMsg = { type: "emote", kind };
+      ws.send(JSON.stringify(msg));
+    },
+    sendNote: (text: string) => {
+      if (ws.readyState !== WebSocket.OPEN) return;
+      // Server places the note at the player's authoritative position; x/y unused.
+      const msg: ClientMsg = { type: "note", text, x: 0, y: 0 };
+      ws.send(JSON.stringify(msg));
+    },
+    sendReport: (noteId: number) => {
+      if (ws.readyState !== WebSocket.OPEN) return;
+      const msg: ClientMsg = { type: "report", noteId };
       ws.send(JSON.stringify(msg));
     },
   };

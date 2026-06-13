@@ -1,4 +1,4 @@
-import type { Dir, EmoteKind, EventMsg, SnapMsg, WelcomeMsg } from "@tinyworld/shared";
+import type { Dir, EmoteKind, EventMsg, Note, SnapMsg, WelcomeMsg } from "@tinyworld/shared";
 import { GOAL_RECT } from "@tinyworld/shared";
 import { CollisionGrid, VILLAGE_MAP } from "@tinyworld/world";
 import { Application, Container, Graphics, Text, TextStyle } from "pixi.js";
@@ -10,6 +10,7 @@ import { ExhibitMarkers } from "./Exhibits.js";
 import { createInput } from "./Input.js";
 import { LocalPlayer } from "./LocalPlayer.js";
 import { MapRenderer } from "./MapRenderer.js";
+import { NotesLayer } from "./Notes.js";
 import { RemoteEntity } from "./RemoteEntity.js";
 
 export interface GameInstance {
@@ -18,6 +19,10 @@ export interface GameInstance {
   setJoystick: (dx: number, dy: number) => void;
   /** Broadcast an emote from the local player. */
   sendEmote: (kind: EmoteKind) => void;
+  /** Drop a chalk note at the local player's position. */
+  sendNote: (text: string) => void;
+  /** Report a note for moderation. */
+  sendReport: (noteId: number) => void;
   destroy: () => void;
 }
 
@@ -49,13 +54,14 @@ export interface GameCallbacks {
   onPing?: (ms: number) => void;
   onStatus?: (status: "connected" | "disconnected") => void;
   onGoals?: (goals: number) => void;
+  onReportNote?: (note: Note) => void;
 }
 
 export async function initGame(
   container: HTMLElement,
   callbacks: GameCallbacks = {},
 ): Promise<GameInstance> {
-  const { onPlayerCount, onNearExhibit, onPing, onStatus, onGoals } = callbacks;
+  const { onPlayerCount, onNearExhibit, onPing, onStatus, onGoals, onReportNote } = callbacks;
   const app = new Application();
 
   await app.init({
@@ -71,6 +77,8 @@ export async function initGame(
   const mapRenderer = new MapRenderer(VILLAGE_MAP);
   const exhibitMarkers = new ExhibitMarkers();
   const goalZone = makeGoalZone();
+  const notesLayer = new NotesLayer((note) => onReportNote?.(note));
+  notesLayer.container.zIndex = 500; // above avatars, below emotes
   const emotes = new Emotes();
   emotes.container.zIndex = 1000; // always above avatars
   const dayNight = new DayNight();
@@ -212,8 +220,13 @@ export async function initGame(
             emotes.spawn(payload.kind, () => ({ x: remote.container.x, y: remote.container.y }));
           }
         }
+      } else if (msg.kind === "note") {
+        notesLayer.add(msg.payload as Note);
+      } else if (msg.kind === "note_removed") {
+        notesLayer.remove((msg.payload as { id: number }).id);
       }
     },
+    onNotes: (notes) => notesLayer.setNotes(notes),
   });
 
   const input = createInput();
@@ -229,6 +242,7 @@ export async function initGame(
   camera.container.addChild(mapRenderer.container);
   camera.container.addChild(goalZone);
   camera.container.addChild(exhibitMarkers.container);
+  camera.container.addChild(notesLayer.container);
   camera.container.addChild(emotes.container);
   app.stage.addChild(camera.container);
   app.stage.addChild(dayNight.container); // screen-space tint, above the world
@@ -256,6 +270,7 @@ export async function initGame(
       remote.update(serverTime, dt);
     }
 
+    notesLayer.update();
     emotes.update(dt);
     dayNight.update(dt);
   });
@@ -264,6 +279,8 @@ export async function initGame(
     app,
     setJoystick,
     sendEmote: socket.sendEmote,
+    sendNote: socket.sendNote,
+    sendReport: socket.sendReport,
     destroy: () => {
       socket.close();
       app.renderer.off("resize", onResize);
