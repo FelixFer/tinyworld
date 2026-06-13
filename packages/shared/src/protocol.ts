@@ -74,6 +74,8 @@ export interface ErrorMsg {
 
 export type ServerMsg = WelcomeMsg | SnapMsg | EventMsg | PongMsg | ErrorMsg;
 
+export type EntityKind = "player" | "cat" | "dog";
+
 export interface EntitySnapshot {
   id: string;
   x: number;
@@ -82,6 +84,7 @@ export interface EntitySnapshot {
   name: string;
   /** Last client input the server has processed for this entity (reconciliation ack). */
   lastInputSeq: number;
+  kind: EntityKind;
 }
 
 export interface Snapshot {
@@ -104,5 +107,6 @@ export function entityToSnapshot(entity: {
     dir: entity.dir,
     name: entity.name,
     lastInputSeq: entity.lastInputSeq,
+    kind: "player",
   };
 }

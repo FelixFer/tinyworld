@@ -1,4 +1,4 @@
-import type { Dir, EntitySnapshot } from "@tinyworld/shared";
+import type { Dir, EntityKind, EntitySnapshot } from "@tinyworld/shared";
 import { Container, Graphics, Text, TextStyle } from "pixi.js";
 
 const TILE = 16;
@@ -20,9 +20,11 @@ export class RemoteEntity {
   private snapshots: SnapshotEntry[] = [];
   private animTime = 0;
   private dir: Dir = "down";
+  private readonly kind: EntityKind;
 
-  constructor(id: string, snapshot: EntitySnapshot) {
+  constructor(id: string, snapshot: EntitySnapshot, kind: EntityKind = "player") {
     this.entityId = id;
+    this.kind = kind;
     this.name = snapshot.name;
     this.dir = snapshot.dir;
     this.container = new Container();
@@ -83,10 +85,25 @@ export class RemoteEntity {
 
   private render(): void {
     this.container.removeChildren();
-
-    const body = new Graphics();
     const bob = Math.sin(this.animTime) * 1.5;
 
+    if (this.kind === "cat") {
+      const cat = new Text({ text: "🐱", style: new TextStyle({ fontSize: 16 }) });
+      cat.anchor.set(0.5, 0.5);
+      cat.y = bob;
+      this.container.addChild(cat);
+      return;
+    }
+
+    if (this.kind === "dog") {
+      const dog = new Text({ text: "🐶", style: new TextStyle({ fontSize: 16 }) });
+      dog.anchor.set(0.5, 0.5);
+      dog.y = bob;
+      this.container.addChild(dog);
+      return;
+    }
+
+    const body = new Graphics();
     body.roundRect(-BODY_SIZE / 2, -BODY_SIZE / 2 + bob, BODY_SIZE, BODY_SIZE, 2);
     body.fill({ color: 0xff6b9d });
     body.stroke({ color: 0xcc4477, width: 1 });

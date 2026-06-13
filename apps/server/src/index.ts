@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import type {
   ClientMsg,
   EmoteMsg,
+  EntitySnapshot,
   EventMsg,
   HelloMsg,
   InputMsg,
@@ -78,11 +79,33 @@ function broadcastSnapshot(): void {
   // Only count and include connected (non-disconnected) entities
   const activeEntities = Array.from(game.entities.values()).filter((e) => e.disconnectedAt === 0);
 
+  const cat = game.cat;
+  const catSnap: EntitySnapshot = {
+    id: "cat",
+    x: Math.round(cat.x * 100) / 100,
+    y: Math.round(cat.y * 100) / 100,
+    dir: cat.dir,
+    name: "",
+    lastInputSeq: 0,
+    kind: "cat",
+  };
+
+  const dog = game.dog;
+  const dogSnap: EntitySnapshot = {
+    id: "dog",
+    x: Math.round(dog.x * 100) / 100,
+    y: Math.round(dog.y * 100) / 100,
+    dir: dog.dir,
+    name: "",
+    lastInputSeq: 0,
+    kind: "dog",
+  };
+
   const msg: SnapMsg = {
     type: "snap",
     tick: snapshot.tick,
     baseTick: isKeyframe ? undefined : snapshot.tick - 1,
-    entities: activeEntities.map(entityToSnapshot),
+    entities: [...activeEntities.map(entityToSnapshot), catSnap, dogSnap],
     playerCount: activeEntities.length,
     timeOfDay: (Date.now() % DAY_CYCLE_MS) / DAY_CYCLE_MS,
   };

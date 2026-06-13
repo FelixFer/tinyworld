@@ -122,7 +122,7 @@ export async function initGame(
       for (const entity of msg.snapshot.entities) {
         if (entity.id !== msg.selfId) {
           console.log("Creating remote entity from welcome:", entity.id, entity.name);
-          const remote = new RemoteEntity(entity.id, entity);
+          const remote = new RemoteEntity(entity.id, entity, entity.kind);
           remoteEntities.set(entity.id, remote);
           camera.container.addChild(remote.container);
         }
@@ -153,7 +153,7 @@ export async function initGame(
               "localPlayerId:",
               localPlayer?.entityId,
             );
-            remote = new RemoteEntity(entity.id, entity);
+            remote = new RemoteEntity(entity.id, entity, entity.kind);
             remoteEntities.set(entity.id, remote);
             camera.container.addChild(remote.container);
           }

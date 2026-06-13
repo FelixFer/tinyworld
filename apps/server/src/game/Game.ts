@@ -1,6 +1,8 @@
 import type { Dir, EntityInput, SolidTest, Steppable } from "@tinyworld/shared";
 import { createEntity, step } from "@tinyworld/shared";
 import { CollisionGrid, VILLAGE_MAP } from "@tinyworld/world";
+import { Cat } from "./Cat.js";
+import { Dog } from "./Dog.js";
 
 const collision = new CollisionGrid(VILLAGE_MAP);
 const isSolid: SolidTest = (rect) => collision.testRect(rect);
@@ -40,6 +42,8 @@ export class ServerEntity implements Steppable {
 
 export class ServerGame {
   readonly entities = new Map<string, ServerEntity>();
+  readonly cat = new Cat(20 * 16, 8 * 16);
+  readonly dog = new Dog(10 * 16, 4 * 16);
   currentTick = 0;
   private tickInterval: ReturnType<typeof setInterval> | null = null;
   private readonly tickRate = 20;
@@ -70,6 +74,9 @@ export class ServerGame {
         serverEntity.lastInputSeq = input.seq;
       }
     }
+
+    this.cat.update(this.tickDuration, isSolid);
+    this.dog.update(this.tickDuration, isSolid);
   }
 
   addEntity(id: string, x: number, y: number, name: string, token: string): ServerEntity {
