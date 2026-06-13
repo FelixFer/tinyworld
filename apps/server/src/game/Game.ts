@@ -3,6 +3,7 @@ import { GOAL_RECT, createEntity, step } from "@tinyworld/shared";
 import { CollisionGrid, VILLAGE_MAP } from "@tinyworld/world";
 import { Ball } from "./Ball.js";
 import { Cat } from "./Cat.js";
+import { saveCounter } from "./Counters.js";
 import { Dog } from "./Dog.js";
 import { GhostManager } from "./Ghosts.js";
 import type { GhostSample } from "./ghostCodec.js";
@@ -115,6 +116,7 @@ export class ServerGame {
     if (this.ballInGoal()) {
       this.goals++;
       this.ball.reset();
+      saveCounter("goals", this.goals).catch((e) => console.error("goals persist failed", e));
     }
 
     this.cat.update(this.tickDuration, isSolid);

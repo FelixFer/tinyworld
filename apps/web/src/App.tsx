@@ -89,6 +89,7 @@ export default function App() {
       if (e.key === "e" || e.key === "E") {
         if (nearRef.current) setOpenExhibitId((cur) => cur ?? nearRef.current);
       } else if (e.key === "n" || e.key === "N") {
+        e.preventDefault(); // don't let this 'n' land in the composer input
         setComposerOpen(true);
       } else if (e.key >= "1" && e.key <= "4") {
         gameRef.current?.sendEmote(EMOTE_KEYS[Number(e.key) - 1]);

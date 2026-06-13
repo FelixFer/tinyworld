@@ -23,6 +23,7 @@ import { VILLAGE_MAP } from "@tinyworld/world";
 import type uWS from "uWebSockets.js";
 import uWSLib from "uWebSockets.js";
 import { ClientTracker } from "./game/Client.js";
+import { loadCounter } from "./game/Counters.js";
 import { type ServerEntity, ServerGame } from "./game/Game.js";
 import { generateName } from "./game/Names.js";
 import { NotesManager, ipHash } from "./game/Notes.js";
@@ -99,6 +100,11 @@ const PLAIN_HTML = renderPlainPage();
 
 game.start();
 game.ghosts.load().catch((e) => console.error("ghost load failed", e));
+loadCounter("goals")
+  .then((n) => {
+    game.goals = n;
+  })
+  .catch((e) => console.error("goals load failed", e));
 
 // Cleanup disconnected entities past their 5s grace; persist ghost-worthy paths.
 setInterval(() => {

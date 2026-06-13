@@ -15,7 +15,13 @@ export function createInput(): InputState {
     hidden: document.hidden,
   };
 
+  const typingInField = () => {
+    const el = document.activeElement;
+    return !!el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA");
+  };
+
   const onKey = (e: KeyboardEvent, pressed: boolean) => {
+    if (typingInField()) return; // don't capture WASD while typing a note
     switch (e.code) {
       case "KeyW":
       case "ArrowUp":
@@ -53,9 +59,14 @@ export function createInput(): InputState {
     }
   };
 
+  const onFocusIn = () => {
+    if (typingInField()) state.up = state.down = state.left = state.right = false;
+  };
+
   window.addEventListener("keydown", onKeyDown);
   window.addEventListener("keyup", onKeyUp);
   window.addEventListener("blur", onBlur);
+  window.addEventListener("focusin", onFocusIn);
   document.addEventListener("visibilitychange", onVisibility);
 
   return state;
