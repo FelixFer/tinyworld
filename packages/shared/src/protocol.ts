@@ -28,12 +28,25 @@ export interface NoteMsg {
   x: number;
   y: number;
 }
+export interface ReportMsg {
+  type: "report";
+  noteId: number;
+}
 export interface PingMsg {
   type: "ping";
   t: number;
 }
 
-export type ClientMsg = HelloMsg | InputMsg | EmoteMsg | KickMsg | NoteMsg | PingMsg;
+export type ClientMsg = HelloMsg | InputMsg | EmoteMsg | KickMsg | NoteMsg | ReportMsg | PingMsg;
+
+/** A chalk note on the map. createdAt is epoch ms (client computes fade from age). */
+export interface Note {
+  id: number;
+  text: string;
+  x: number;
+  y: number;
+  createdAt: number;
+}
 
 export interface WelcomeMsg {
   type: "welcome";
@@ -67,8 +80,14 @@ export const GOAL_RECT = { x: 192, y: 16, width: 80, height: 32 } as const;
 
 export interface EventMsg {
   type: "event";
-  kind: "join" | "leave" | "emote" | "note" | "goal";
+  kind: "join" | "leave" | "emote" | "note" | "note_removed" | "goal";
   payload: unknown;
+}
+
+/** Full list of active notes, sent on join. */
+export interface NotesMsg {
+  type: "notes";
+  notes: Note[];
 }
 
 export interface PongMsg {
@@ -78,10 +97,10 @@ export interface PongMsg {
 }
 export interface ErrorMsg {
   type: "error";
-  code: "rate_limited" | "banned" | "full";
+  code: "rate_limited" | "banned" | "full" | "note_rejected";
 }
 
-export type ServerMsg = WelcomeMsg | SnapMsg | EventMsg | PongMsg | ErrorMsg;
+export type ServerMsg = WelcomeMsg | SnapMsg | EventMsg | PongMsg | ErrorMsg | NotesMsg;
 
 export type EntityKind = "player" | "cat" | "dog" | "ball" | "ghost";
 

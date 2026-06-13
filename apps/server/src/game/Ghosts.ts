@@ -25,7 +25,12 @@ export class GhostManager {
       .map((r, i) => {
         const samples = decodeGhostPath(r.path);
         const duration = samples.length / 4;
-        return { id: `ghost:${r.id}`, samples, duration, playhead: (i * 3.1) % Math.max(1, duration) };
+        return {
+          id: `ghost:${r.id}`,
+          samples,
+          duration,
+          playhead: (i * 3.1) % Math.max(1, duration),
+        };
       })
       .filter((g) => g.samples.length > 1);
     console.log(`Loaded ${this.replays.length} ghost(s) for replay.`);

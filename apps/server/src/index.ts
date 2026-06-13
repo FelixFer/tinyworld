@@ -5,11 +5,15 @@ import type {
   ClientMsg,
   EmoteMsg,
   EntitySnapshot,
+  ErrorMsg,
   EventMsg,
   HelloMsg,
   InputMsg,
+  NoteMsg,
+  NotesMsg,
   PingMsg,
   PongMsg,
+  ReportMsg,
   ServerMsg,
   SnapMsg,
   WelcomeMsg,
@@ -21,11 +25,13 @@ import uWSLib from "uWebSockets.js";
 import { ClientTracker } from "./game/Client.js";
 import { type ServerEntity, ServerGame } from "./game/Game.js";
 import { generateName } from "./game/Names.js";
+import { NotesManager, ipHash } from "./game/Notes.js";
 import { SnapshotManager } from "./game/Snapshot.js";
 import { renderPlainPage } from "./plain.js";
 
 interface ClientWebSocket extends uWS.WebSocket<unknown> {
   clientId?: string;
+  ipHash?: string;
 }
 
 const PORT = Number(process.env.PORT) || 3000;
@@ -51,6 +57,42 @@ const snapshots = new SnapshotManager();
 const connectedWebSockets = new Set<ClientWebSocket>();
 const lastEmoteAt = new Map<string, number>();
 const EMOTE_KINDS = new Set<EmoteMsg["kind"]>(["wave", "heart", "question", "bang"]);
+const notesMgr = new NotesManager();
+
+// Basic-auth admin (disabled unless ADMIN_PASS is set).
+const ADMIN_USER = process.env.ADMIN_USER || "admin";
+const ADMIN_PASS = process.env.ADMIN_PASS;
+
+function adminOk(req: uWS.HttpRequest): boolean {
+  if (!ADMIN_PASS) return false;
+  const h = req.getHeader("authorization");
+  if (!h.startsWith("Basic ")) return false;
+  const [u, p] = Buffer.from(h.slice(6), "base64").toString().split(":");
+  return u === ADMIN_USER && p === ADMIN_PASS;
+}
+
+function denyAdmin(res: uWS.HttpResponse): void {
+  res
+    .writeStatus("401 Unauthorized")
+    .writeHeader("WWW-Authenticate", 'Basic realm="tinyworld admin"')
+    .end("Authentication required");
+}
+
+function adminEsc(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function renderAdmin(
+  list: { id: number; text: string; hidden: boolean; reports: number }[],
+): string {
+  const rows = list
+    .map(
+      (n) =>
+        `<tr${n.hidden ? ' style="opacity:.5"' : ""}><td>${n.id}</td><td>${adminEsc(n.text)}</td><td>${n.reports}</td><td>${n.hidden ? "hidden" : ""}</td><td><a href="/admin/delete?id=${n.id}">delete</a> · <a href="/admin/ban?id=${n.id}">ban author</a></td></tr>`,
+    )
+    .join("");
+  return `<!doctype html><meta charset="utf-8"><title>admin</title><style>body{font:14px system-ui;margin:24px}table{border-collapse:collapse}td{border:1px solid #ccc;padding:4px 8px}</style><h1>notes (${list.length})</h1><table><tr><th>id</th><th>text</th><th>reports</th><th></th><th></th></tr>${rows}</table>`;
+}
 
 // Portfolio content is static per deploy — render the plain page once.
 const PLAIN_HTML = renderPlainPage();
@@ -61,7 +103,9 @@ game.ghosts.load().catch((e) => console.error("ghost load failed", e));
 // Cleanup disconnected entities past their 5s grace; persist ghost-worthy paths.
 setInterval(() => {
   for (const g of game.cleanupDisconnected(5000)) {
-    game.ghosts.persist(g.samples, g.durationS).catch((e) => console.error("ghost persist failed", e));
+    game.ghosts
+      .persist(g.samples, g.durationS)
+      .catch((e) => console.error("ghost persist failed", e));
   }
 }, 1000);
 
@@ -151,9 +195,26 @@ app
     maxPayloadLength: 16 * 1024,
     idleTimeout: 10,
 
+    upgrade(res, req, context) {
+      // Capture the real client IP (x-forwarded-for behind the Railway proxy).
+      const xff = req.getHeader("x-forwarded-for");
+      const ip =
+        (xff ? xff.split(",")[0].trim() : "") ||
+        Buffer.from(res.getRemoteAddressAsText()).toString();
+      res.upgrade(
+        { ip },
+        req.getHeader("sec-websocket-key"),
+        req.getHeader("sec-websocket-protocol"),
+        req.getHeader("sec-websocket-extensions"),
+        context,
+      );
+    },
+
     open(ws) {
+      const { ip } = ws.getUserData() as { ip: string };
       const clientId = Math.random().toString(36).slice(2, 10);
       (ws as ClientWebSocket).clientId = clientId;
+      (ws as ClientWebSocket).ipHash = ipHash(ip || "local");
       connectedWebSockets.add(ws);
       // The entity is created when the client sends `hello` — that message
       // carries any reconnect token, which lets us rebind a disconnected
@@ -225,6 +286,16 @@ app
             payload: { id: clientId, name: entity.name },
           };
           sendToAll(joinEvent, ws);
+
+          notesMgr
+            .loadActive()
+            .then((list) => {
+              if (connectedWebSockets.has(ws as ClientWebSocket)) {
+                const notesMsg: NotesMsg = { type: "notes", notes: list };
+                ws.send(JSON.stringify(notesMsg), false);
+              }
+            })
+            .catch((e) => console.error("notes load failed", e));
           break;
         }
 
@@ -258,6 +329,46 @@ app
             payload: { id: clientId, kind: emote.kind },
           };
           sendToAll(ev);
+          break;
+        }
+
+        case "note": {
+          const note = msg as NoteMsg;
+          const entity = game.getEntity(clientId);
+          if (!entity) break;
+          const hash = (ws as ClientWebSocket).ipHash ?? "local";
+          const x = Math.round(entity.x + 8); // note dropped at the player's feet
+          const y = Math.round(entity.y + 8);
+          notesMgr
+            .create(note.text, x, y, clientId, hash)
+            .then((r) => {
+              if (r.ok) {
+                const ev: EventMsg = { type: "event", kind: "note", payload: r.note };
+                sendToAll(ev);
+              } else if (connectedWebSockets.has(ws as ClientWebSocket)) {
+                const err: ErrorMsg = { type: "error", code: r.code };
+                ws.send(JSON.stringify(err), false);
+              }
+            })
+            .catch((e) => console.error("note create failed", e));
+          break;
+        }
+
+        case "report": {
+          const rep = msg as ReportMsg;
+          notesMgr
+            .report(rep.noteId)
+            .then((hiddenId) => {
+              if (hiddenId !== null) {
+                const ev: EventMsg = {
+                  type: "event",
+                  kind: "note_removed",
+                  payload: { id: hiddenId },
+                };
+                sendToAll(ev);
+              }
+            })
+            .catch((e) => console.error("note report failed", e));
           break;
         }
 
@@ -297,6 +408,47 @@ app
         console.log(`client disconnected: ${clientId}`);
       }
     },
+  })
+  .get("/admin", (res, req) => {
+    if (!adminOk(req)) return denyAdmin(res);
+    let aborted = false;
+    res.onAborted(() => {
+      aborted = true;
+    });
+    notesMgr.adminList().then((list) => {
+      if (aborted) return;
+      res.cork(() =>
+        res.writeHeader("Content-Type", "text/html; charset=utf-8").end(renderAdmin(list)),
+      );
+    });
+  })
+  .get("/admin/delete", (res, req) => {
+    if (!adminOk(req)) return denyAdmin(res);
+    const id = Number(req.getQuery("id"));
+    let aborted = false;
+    res.onAborted(() => {
+      aborted = true;
+    });
+    notesMgr.deleteNote(id).then(() => {
+      const ev: EventMsg = { type: "event", kind: "note_removed", payload: { id } };
+      sendToAll(ev);
+      if (!aborted)
+        res.cork(() => res.writeStatus("302 Found").writeHeader("Location", "/admin").end());
+    });
+  })
+  .get("/admin/ban", (res, req) => {
+    if (!adminOk(req)) return denyAdmin(res);
+    const id = Number(req.getQuery("id"));
+    let aborted = false;
+    res.onAborted(() => {
+      aborted = true;
+    });
+    notesMgr.banByNote(id, "admin ban").then(() => {
+      const ev: EventMsg = { type: "event", kind: "note_removed", payload: { id } };
+      sendToAll(ev);
+      if (!aborted)
+        res.cork(() => res.writeStatus("302 Found").writeHeader("Location", "/admin").end());
+    });
   })
   .get("/plain", (res) => {
     res.writeHeader("Content-Type", "text/html; charset=utf-8").end(PLAIN_HTML);

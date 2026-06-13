@@ -26,6 +26,9 @@ importers:
       drizzle-orm:
         specifier: ^0.36.4
         version: 0.36.4(@types/react@18.3.31)(postgres@3.4.9)(react@18.3.1)
+      obscenity:
+        specifier: ^0.4.0
+        version: 0.4.6
       postgres:
         specifier: ^3.4.5
         version: 3.4.9
@@ -1259,6 +1262,10 @@ packages:
     resolution: {integrity: sha512-Uzmd6LXpouKo8EUK68IjH4+E01w/hXyV3R3g/geCJo+rXLNfh1xucB+LOzYEOQPSiUK3h/xZf0cQGcSsmyL2Og==}
     engines: {node: '>=18'}
 
+  obscenity@0.4.6:
+    resolution: {integrity: sha512-pHk7kNN7j3L3zGhhGnwxjvXIGsPpLrcZl2r58fqWh/V/rH6b/dafscj2sMmAY+A/9/wPsocLmimgGk2DKeKsFQ==}
+    engines: {node: '>=18.0.0'}
+
   parse-svg-path@0.2.0:
     resolution: {integrity: sha512-Tf7FFIrguPKQwzD4pWnYkR2VOv3raoHeKED80Bm+BYHI3KxC8KsgsGC5+fSMzAGDA6UEk4bHvmi+RsjmL3khpg==}
 
@@ -2200,6 +2207,8 @@ snapshots:
   nanoid@3.3.12: {}
 
   node-releases@2.0.47: {}
+
+  obscenity@0.4.6: {}
 
   parse-svg-path@0.2.0: {}
 
