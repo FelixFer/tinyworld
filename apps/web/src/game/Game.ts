@@ -1,6 +1,7 @@
 import type { Dir, EmoteKind, EventMsg, SnapMsg, WelcomeMsg } from "@tinyworld/shared";
+import { GOAL_RECT } from "@tinyworld/shared";
 import { CollisionGrid, VILLAGE_MAP } from "@tinyworld/world";
-import { Application } from "pixi.js";
+import { Application, Container, Graphics, Text, TextStyle } from "pixi.js";
 import { createSocket } from "../net/socket.js";
 import { Camera } from "./Camera.js";
 import { DayNight } from "./DayNight.js";
@@ -22,18 +23,39 @@ export interface GameInstance {
 
 const JOY_DEADZONE = 0.3;
 
+/** Static, world-space marker for the ball's goal zone. */
+function makeGoalZone(): Container {
+  const zone = new Container();
+  const gfx = new Graphics();
+  gfx
+    .rect(GOAL_RECT.x, GOAL_RECT.y, GOAL_RECT.width, GOAL_RECT.height)
+    .fill({ color: 0x4ecdc4, alpha: 0.18 })
+    .stroke({ color: 0x4ecdc4, width: 2 });
+  zone.addChild(gfx);
+  const label = new Text({
+    text: "⚽ GOAL",
+    style: new TextStyle({ fontSize: 8, fill: "#ffffff", stroke: { color: "#000000", width: 2 } }),
+  });
+  label.anchor.set(0.5, 0.5);
+  label.x = GOAL_RECT.x + GOAL_RECT.width / 2;
+  label.y = GOAL_RECT.y + GOAL_RECT.height / 2;
+  zone.addChild(label);
+  return zone;
+}
+
 export interface GameCallbacks {
   onPlayerCount?: (count: number) => void;
   onNearExhibit?: (id: string | null) => void;
   onPing?: (ms: number) => void;
   onStatus?: (status: "connected" | "disconnected") => void;
+  onGoals?: (goals: number) => void;
 }
 
 export async function initGame(
   container: HTMLElement,
   callbacks: GameCallbacks = {},
 ): Promise<GameInstance> {
-  const { onPlayerCount, onNearExhibit, onPing, onStatus } = callbacks;
+  const { onPlayerCount, onNearExhibit, onPing, onStatus, onGoals } = callbacks;
   const app = new Application();
 
   await app.init({
@@ -48,6 +70,7 @@ export async function initGame(
 
   const mapRenderer = new MapRenderer(VILLAGE_MAP);
   const exhibitMarkers = new ExhibitMarkers();
+  const goalZone = makeGoalZone();
   const emotes = new Emotes();
   emotes.container.zIndex = 1000; // always above avatars
   const dayNight = new DayNight();
@@ -135,6 +158,7 @@ export async function initGame(
       }
 
       onPlayerCount?.(msg.playerCount);
+      onGoals?.(msg.goals);
       dayNight.sync(msg.timeOfDay);
 
       lastServerTick = msg.tick;
@@ -203,6 +227,7 @@ export async function initGame(
 
   camera.container.sortableChildren = true;
   camera.container.addChild(mapRenderer.container);
+  camera.container.addChild(goalZone);
   camera.container.addChild(exhibitMarkers.container);
   camera.container.addChild(emotes.container);
   app.stage.addChild(camera.container);

@@ -1,4 +1,5 @@
 import type { Dir, EntityKind, EntitySnapshot } from "@tinyworld/shared";
+import { BALL_RADIUS } from "@tinyworld/shared";
 import { Container, Graphics, Text, TextStyle } from "pixi.js";
 
 const TILE = 16;
@@ -100,6 +101,17 @@ export class RemoteEntity {
       dog.anchor.set(0.5, 0.5);
       dog.y = bob;
       this.container.addChild(dog);
+      return;
+    }
+
+    if (this.kind === "ball") {
+      const ball = new Graphics();
+      // Ball coords are its true center; offset by -TILE/2 to undo the
+      // avatar-centering that update() applies to the container.
+      ball.circle(-TILE / 2, -TILE / 2 + bob, BALL_RADIUS);
+      ball.fill({ color: 0xffffff });
+      ball.stroke({ color: 0x333333, width: 1.5 });
+      this.container.addChild(ball);
       return;
     }
 

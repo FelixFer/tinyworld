@@ -1,11 +1,15 @@
 import type { Dir, EntityInput, SolidTest, Steppable } from "@tinyworld/shared";
-import { createEntity, step } from "@tinyworld/shared";
+import { GOAL_RECT, createEntity, step } from "@tinyworld/shared";
 import { CollisionGrid, VILLAGE_MAP } from "@tinyworld/world";
+import { Ball } from "./Ball.js";
 import { Cat } from "./Cat.js";
 import { Dog } from "./Dog.js";
 
 const collision = new CollisionGrid(VILLAGE_MAP);
 const isSolid: SolidTest = (rect) => collision.testRect(rect);
+
+const KICK_RANGE = 14; // px between player center and ball center to kick
+const KICK_SPEED = 175; // px/s imparted on a kick
 
 export class ServerEntity implements Steppable {
   id: string;
@@ -44,6 +48,8 @@ export class ServerGame {
   readonly entities = new Map<string, ServerEntity>();
   readonly cat = new Cat(20 * 16, 8 * 16);
   readonly dog = new Dog(10 * 16, 4 * 16);
+  readonly ball = new Ball();
+  goals = 0;
   currentTick = 0;
   private tickInterval: ReturnType<typeof setInterval> | null = null;
   private readonly tickRate = 20;
@@ -75,8 +81,31 @@ export class ServerGame {
       }
     }
 
+    // Players kick the ball by walking into it.
+    for (const p of this.entities.values()) {
+      if (p.disconnectedAt > 0) continue;
+      const dx = this.ball.x - (p.x + 8);
+      const dy = this.ball.y - (p.y + 8);
+      if (Math.hypot(dx, dy) < KICK_RANGE) this.ball.kick(dx, dy, KICK_SPEED);
+    }
+    this.ball.update(this.tickDuration, isSolid);
+    if (this.ballInGoal()) {
+      this.goals++;
+      this.ball.reset();
+    }
+
     this.cat.update(this.tickDuration, isSolid);
     this.dog.update(this.tickDuration, isSolid);
+  }
+
+  private ballInGoal(): boolean {
+    const b = this.ball;
+    return (
+      b.x >= GOAL_RECT.x &&
+      b.x <= GOAL_RECT.x + GOAL_RECT.width &&
+      b.y >= GOAL_RECT.y &&
+      b.y <= GOAL_RECT.y + GOAL_RECT.height
+    );
   }
 
   addEntity(id: string, x: number, y: number, name: string, token: string): ServerEntity {

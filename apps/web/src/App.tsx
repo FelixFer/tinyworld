@@ -18,6 +18,7 @@ export default function App() {
   const [ping, setPing] = useState<number | null>(null);
   const [status, setStatus] = useState<ConnStatus>("connecting");
   const [playerCount, setPlayerCount] = useState(0);
+  const [goals, setGoals] = useState(0);
   const [nearExhibitId, setNearExhibitId] = useState<string | null>(null);
   const [openExhibitId, setOpenExhibitId] = useState<string | null>(null);
 
@@ -45,6 +46,7 @@ export default function App() {
         onNearExhibit: setNearExhibitId,
         onPing: setPing,
         onStatus: setStatus,
+        onGoals: setGoals,
       });
       gameRef.current = game;
       cleanup = () => {
@@ -108,6 +110,7 @@ export default function App() {
       >
         {label}
         {playerCount > 0 && ` · ${playerCount} here`}
+        {` · ⚽ ${goals}`}
       </div>
 
       {showPrompt && (

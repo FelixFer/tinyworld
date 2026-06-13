@@ -51,10 +51,19 @@ export interface SnapMsg {
   playerCount: number;
   /** Time of day in [0,1): 0 = midnight, 0.5 = noon. Derived from the server clock. */
   timeOfDay: number;
+  /** Running count of community goals scored with the ball. */
+  goals: number;
 }
 
 /** Length of a full in-world day/night cycle, in ms. Shared so clients can interpolate between snapshots. */
 export const DAY_CYCLE_MS = 600_000; // 10 minutes
+
+/** Ball radius in px (server physics + client rendering must agree). */
+export const BALL_RADIUS = 6;
+/** Ball reset/spawn position (center), on the central path. */
+export const BALL_SPAWN = { x: 216, y: 152 } as const;
+/** Goal zone (a rect near the top of the map). Ball center inside it scores. */
+export const GOAL_RECT = { x: 192, y: 16, width: 80, height: 32 } as const;
 
 export interface EventMsg {
   type: "event";
@@ -74,7 +83,7 @@ export interface ErrorMsg {
 
 export type ServerMsg = WelcomeMsg | SnapMsg | EventMsg | PongMsg | ErrorMsg;
 
-export type EntityKind = "player" | "cat" | "dog";
+export type EntityKind = "player" | "cat" | "dog" | "ball";
 
 export interface EntitySnapshot {
   id: string;

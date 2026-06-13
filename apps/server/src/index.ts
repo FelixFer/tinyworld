@@ -101,13 +101,25 @@ function broadcastSnapshot(): void {
     kind: "dog",
   };
 
+  const ball = game.ball;
+  const ballSnap: EntitySnapshot = {
+    id: "ball",
+    x: Math.round(ball.x * 100) / 100,
+    y: Math.round(ball.y * 100) / 100,
+    dir: "down",
+    name: "",
+    lastInputSeq: 0,
+    kind: "ball",
+  };
+
   const msg: SnapMsg = {
     type: "snap",
     tick: snapshot.tick,
     baseTick: isKeyframe ? undefined : snapshot.tick - 1,
-    entities: [...activeEntities.map(entityToSnapshot), catSnap, dogSnap],
+    entities: [...activeEntities.map(entityToSnapshot), catSnap, dogSnap, ballSnap],
     playerCount: activeEntities.length,
     timeOfDay: (Date.now() % DAY_CYCLE_MS) / DAY_CYCLE_MS,
+    goals: game.goals,
   };
 
   sendToAll(msg);
