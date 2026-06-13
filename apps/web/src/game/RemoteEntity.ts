@@ -115,6 +115,14 @@ export class RemoteEntity {
       return;
     }
 
+    if (this.kind === "ghost") {
+      const g = new Graphics();
+      g.roundRect(-BODY_SIZE / 2, -BODY_SIZE / 2 + bob, BODY_SIZE, BODY_SIZE, 2);
+      g.fill({ color: 0xaab4c8, alpha: 0.3 }); // translucent, anonymized
+      this.container.addChild(g);
+      return;
+    }
+
     const body = new Graphics();
     body.roundRect(-BODY_SIZE / 2, -BODY_SIZE / 2 + bob, BODY_SIZE, BODY_SIZE, 2);
     body.fill({ color: 0xff6b9d });

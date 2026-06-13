@@ -83,7 +83,7 @@ export interface ErrorMsg {
 
 export type ServerMsg = WelcomeMsg | SnapMsg | EventMsg | PongMsg | ErrorMsg;
 
-export type EntityKind = "player" | "cat" | "dog" | "ball";
+export type EntityKind = "player" | "cat" | "dog" | "ball" | "ghost";
 
 export interface EntitySnapshot {
   id: string;

@@ -56,10 +56,13 @@ const EMOTE_KINDS = new Set<EmoteMsg["kind"]>(["wave", "heart", "question", "ban
 const PLAIN_HTML = renderPlainPage();
 
 game.start();
+game.ghosts.load().catch((e) => console.error("ghost load failed", e));
 
-// Periodic cleanup of disconnected entities (every 1s, 5s grace)
+// Cleanup disconnected entities past their 5s grace; persist ghost-worthy paths.
 setInterval(() => {
-  game.cleanupDisconnected(5000);
+  for (const g of game.cleanupDisconnected(5000)) {
+    game.ghosts.persist(g.samples, g.durationS).catch((e) => console.error("ghost persist failed", e));
+  }
 }, 1000);
 
 const app = uWSLib.App();
@@ -116,7 +119,13 @@ function broadcastSnapshot(): void {
     type: "snap",
     tick: snapshot.tick,
     baseTick: isKeyframe ? undefined : snapshot.tick - 1,
-    entities: [...activeEntities.map(entityToSnapshot), catSnap, dogSnap, ballSnap],
+    entities: [
+      ...activeEntities.map(entityToSnapshot),
+      catSnap,
+      dogSnap,
+      ballSnap,
+      ...game.ghosts.snapshots(),
+    ],
     playerCount: activeEntities.length,
     timeOfDay: (Date.now() % DAY_CYCLE_MS) / DAY_CYCLE_MS,
     goals: game.goals,
