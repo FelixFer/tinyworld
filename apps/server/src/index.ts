@@ -22,6 +22,7 @@ import { DAY_CYCLE_MS, encodeSnap, entityToSnapshot } from "@tinyworld/shared";
 import { VILLAGE_MAP } from "@tinyworld/world";
 import type uWS from "uWebSockets.js";
 import uWSLib from "uWebSockets.js";
+import { notifyVisitor } from "./discord.js";
 import { ClientTracker } from "./game/Client.js";
 import { loadCounter } from "./game/Counters.js";
 import { type ServerEntity, ServerGame } from "./game/Game.js";
@@ -309,6 +310,10 @@ app
               token,
             );
             console.log(`join: ${entity.name} (${clientId})`);
+            const activePlayers = Array.from(game.entities.values()).filter(
+              (e) => e.disconnectedAt === 0,
+            ).length;
+            notifyVisitor(entity.name, activePlayers);
           }
           clients.addClient(clientId, clientId);
 

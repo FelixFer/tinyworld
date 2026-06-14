@@ -1,0 +1,17 @@
+global:
+  scrape_interval: 5s
+
+scrape_configs:
+  # Local game server running on the host (node apps/server/dist/index.js).
+  - job_name: tinyworld
+    static_configs:
+      - targets: ["host.docker.internal:3000"]
+
+  # To scrape the deployed Railway box instead, comment out the job above and
+  # use this one (HTTPS, default 443, no port in the target):
+  #
+  # - job_name: tinyworld-prod
+  #   scheme: https
+  #   metrics_path: /metrics
+  #   static_configs:
+  #     - targets: ["tinyworldweb-production.up.railway.app"]
