@@ -172,13 +172,6 @@ reading your resume — go say hi."_ Rate-limited so it never spams. In an
 interview, that notification arriving live, on a portfolio that is itself a
 running multiplayer system, is the whole pitch in one buzz.
 
-## The bill
-
-- Railway box: ~$5/month
-- Neon Postgres: free tier
-- Grafana / UptimeRobot: free tiers
-- **Total: ~$6/month** plus a domain.
-
 ## What I deliberately didn't use
 
 Phaser, Colyseus, PartyKit, Liveblocks — any of them would have done the
