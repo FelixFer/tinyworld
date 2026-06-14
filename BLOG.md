@@ -9,6 +9,8 @@ ten seconds.
 
 The point isn't the game. The point is that **the netcode is the resume.**
 
+<img width="1918" height="984" alt="Image" src="https://github.com/user-attachments/assets/4ec7aa4f-8b51-4170-8e00-825e708bddc6" />
+
 ## The shape of it
 
 One authoritative Node process owns the world in memory and ticks at 20 Hz.
