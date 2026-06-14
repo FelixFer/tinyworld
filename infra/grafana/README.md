@@ -17,7 +17,8 @@ docker compose -f infra/docker-compose.yml up -d
 k6 run infra/k6/load.js
 ```
 
-Open **http://localhost:3001** (admin / admin) → dashboard **tinyworld**.
+Open **http://localhost:3001** → dashboard **tinyworld** (anonymous viewing is
+enabled, so no login is needed; sign in as admin / admin to edit).
 Prometheus UI is at http://localhost:9090.
 
 ## Panels

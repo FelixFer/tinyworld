@@ -5,8 +5,8 @@ the headline numbers off the server's `/metrics` endpoint.
 
 ## Run
 
-Install [k6](https://k6.io/docs/get-started/installation/) (`winget install k6` /
-`brew install k6`), start the server, then:
+Install [k6](https://k6.io/docs/get-started/installation/)
+(`winget install GrafanaLabs.k6` / `brew install k6`), start the server, then:
 
 ```sh
 # quick smoke run (validate the script)
@@ -63,6 +63,10 @@ SNAP_BINARY=true  node apps/server/dist/index.js   # binary (default)
 
 Capture `bytesPerSecPerClient` each time → that delta is the binary protocol's
 bandwidth win, and the headline of the perf writeup.
+
+Measured locally at ~200 CCU: **441 KB/s/client (JSON) → 138 KB/s/client
+(binary) = 3.19× less egress**, with the same ~0.1 ms tick cost in both builds
+(serialization happens outside the timed tick).
 
 ## Caveat
 
