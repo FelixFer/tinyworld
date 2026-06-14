@@ -31,6 +31,8 @@ When you open the world:
 
 The full writeup — architecture, netcode, ghost privacy, and the binary-protocol before/after numbers — is in [`BLOG.md`](BLOG.md).
 
+<img width="1918" height="984" alt="Image" src="https://github.com/user-attachments/assets/4ec7aa4f-8b51-4170-8e00-825e708bddc6" />
+
 ## Tech stack
 
 | Layer       | Choice                                                  |
