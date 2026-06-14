@@ -14,4 +14,4 @@ scrape_configs:
   #   scheme: https
   #   metrics_path: /metrics
   #   static_configs:
-  #     - targets: ["tinyworldweb-production.up.railway.app"]
+  #     - targets: ["tinyworld.up.railway.app"]

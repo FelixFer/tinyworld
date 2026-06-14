@@ -2,7 +2,7 @@
 
 A persistent multiplayer world — every visitor is an avatar, past visitors return as ghosts, and the netcode is the point. Walk around with WASD (or a virtual joystick on mobile), read project exhibits, kick a ball, wave at strangers.
 
-**Live:** https://tinyworldweb-production.up.railway.app · **Plain version:** [`/plain`](https://tinyworldweb-production.up.railway.app/plain) · **Deep dive:** [`BLOG.md`](BLOG.md)
+**Live:** https://tinyworld.up.railway.app · **Plain version:** [`/plain`](https://tinyworld.up.railway.app/plain) · **Deep dive:** [`BLOG.md`](BLOG.md)
 
 > **By the numbers** — 20 Hz authoritative tick · client-side prediction + reconciliation · custom binary protocol **3.2× smaller** than JSON · server tick **p95 ~0.15 ms at 200 simulated clients**.
 
@@ -18,16 +18,16 @@ When you open the world:
 - **Leave a chalk note** (**N**) — a short message dropped at your feet that everyone sees and that fades over 7 days.
 - **Watch ghosts** — translucent, anonymized replays of where past visitors walked.
 - **Day & night** — lighting tracks a server clock on a 10-minute cycle.
-- **Read it plain** — [`/plain`](https://tinyworldweb-production.up.railway.app/plain) is a server-rendered, accessible HTML version of all portfolio content for crawlers, ATS parsers, and screen readers.
+- **Read it plain** — [`/plain`](https://tinyworld.up.railway.app/plain) is a server-rendered, accessible HTML version of all portfolio content for crawlers, ATS parsers, and screen readers.
 
 ## Features (and what each proves)
 
 - **Netcode — authoritative server, predicted client.** One Node process owns the world at a 20 Hz tick. Clients predict their own avatar via a single deterministic `step()` shared with the server, then reconcile by replaying unacknowledged inputs; everyone else is interpolated ~120 ms in the past. → _distributed-systems reasoning._
-- **Portfolio layer.** Walk-up exhibits open accessible React modals; SEO meta + OG image; a server-rendered [`/plain`](https://tinyworldweb-production.up.railway.app/plain) page (Lighthouse-a11y oriented); mobile joystick + `prefers-reduced-motion`. → _accessibility maturity._
+- **Portfolio layer.** Walk-up exhibits open accessible React modals; SEO meta + OG image; a server-rendered [`/plain`](https://tinyworld.up.railway.app/plain) page (Lighthouse-a11y oriented); mobile joystick + `prefers-reduced-motion`. → _accessibility maturity._
 - **Aliveness.** Day/night on the server clock, emotes, NPC cat & dog, the kickable ball, and **ghosts** — recent visitors replayed as translucent, anonymized wanderers (paths only, salted IP hashes, never raw IPs). → _the detail people remember._
 - **Chalk notes + moderation.** 140 chars, link-stripped, wordlist-filtered, rate-limited (1/min/session, 5/day/IP-hash); 2 reports auto-hide; basic-auth admin page; env kill-switch; notes fade over 7 days. → _product judgment, abuse thinking._
 - **Binary snapshot protocol.** The 20 Hz snapshot is a packed `DataView` frame — **~3.2× less egress than JSON, measured** — while every other message stays JSON. Toggle with `SNAP_BINARY`. → _data-driven performance engineering._
-- **Observability + load testing.** A Prometheus [`/metrics`](https://tinyworldweb-production.up.railway.app/metrics) endpoint (tick histogram/summary, CCU, egress counters), a local Grafana + Prometheus stack ([`infra/grafana`](infra/grafana)), a k6 200-CCU scenario ([`infra/k6`](infra/k6)), and a Discord webhook that pings you when a visitor arrives. → _ops literacy._
+- **Observability + load testing.** A Prometheus [`/metrics`](https://tinyworld.up.railway.app/metrics) endpoint (tick histogram/summary, CCU, egress counters), a local Grafana + Prometheus stack ([`infra/grafana`](infra/grafana)), a k6 200-CCU scenario ([`infra/k6`](infra/k6)), and a Discord webhook that pings you when a visitor arrives. → _ops literacy._
 
 The full writeup — architecture, netcode, ghost privacy, and the binary-protocol before/after numbers — is in [`BLOG.md`](BLOG.md).
 

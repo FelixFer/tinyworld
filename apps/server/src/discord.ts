@@ -21,7 +21,7 @@ export function notifyVisitor(name: string, activePlayers: number): void {
   if (now - lastNotifyAt < COOLDOWN_MS) return;
   lastNotifyAt = now;
 
-  const content = `👀 **someone is reading your resume** — go say hi! **${name}** just walked into tinyworld.\nhttps://tinyworldweb-production.up.railway.app`;
+  const content = `👀 **someone is reading your resume** — go say hi! **${name}** just walked into tinyworld.\nhttps://tinyworld.up.railway.app`;
 
   fetch(url, {
     method: "POST",

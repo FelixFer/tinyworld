@@ -1,7 +1,7 @@
 # My portfolio is a tiny MMO
 
 Most portfolios are a list of links. Mine is a place you walk into. Open
-[tinyworld](https://tinyworldweb-production.up.railway.app) and you're an avatar
+[tinyworld](https://tinyworld.up.railway.app) and you're an avatar
 in a small persistent world — there are project exhibits to walk up to, a ball
 to kick, a cat and a dog wandering around, and the translucent ghosts of people
 who visited before you. There's no signup and no tutorial. You're moving within
@@ -142,7 +142,7 @@ Two honest caveats, because "numbers or it didn't happen" cuts both ways:
   the same CPU — so the absolute tick latency is, if anything, pessimistic; the
   real server isn't also generating its own load. The binary-vs-JSON _ratio_ is
   unaffected, since it's a byte count. M5 is deployed, so the live
-  [`/metrics`](https://tinyworldweb-production.up.railway.app/metrics) endpoint
+  [`/metrics`](https://tinyworld.up.railway.app/metrics) endpoint
   is there to check.
 
 ## Tick cost under load

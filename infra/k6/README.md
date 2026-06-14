@@ -16,7 +16,7 @@ MAX_VUS=20 HOLD=30s k6 run infra/k6/load.js
 k6 run infra/k6/load.js
 
 # against a deployed box
-WS_URL=wss://tinyworldweb-production.up.railway.app/ws k6 run infra/k6/load.js
+WS_URL=wss://tinyworld.up.railway.app/ws k6 run infra/k6/load.js
 ```
 
 Env knobs: `WS_URL`, `MAX_VUS` (default 200), `HOLD` (default `2m`),
@@ -72,6 +72,6 @@ the timed tick).
 ## Caveat
 
 200 VUs and the server sharing one machine compete for CPU, which inflates tick
-p95. For *publishable* numbers, run k6 against the deployed Railway box (set
+p95. For _publishable_ numbers, run k6 against the deployed Railway box (set
 `WS_URL`) or from a separate machine. A local run validates the harness and
 gives a ballpark.
