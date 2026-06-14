@@ -46,6 +46,12 @@ export default function App() {
     () => window.matchMedia?.("(pointer: coarse)").matches || "ontouchstart" in window,
   );
 
+  // On touch the joystick (bottom-left) and emote column (right) own the edges,
+  // so the centered note/prompt/composer sits above them; honor iOS safe areas.
+  const centerBottom = isTouch
+    ? "calc(168px + env(safe-area-inset-bottom))"
+    : "calc(28px + env(safe-area-inset-bottom))";
+
   useEffect(() => {
     if (gameInitialized) return;
     gameInitialized = true;
@@ -128,8 +134,8 @@ export default function App() {
       <div
         style={{
           position: "absolute",
-          top: 16,
-          left: 16,
+          top: "calc(16px + env(safe-area-inset-top))",
+          left: "calc(16px + env(safe-area-inset-left))",
           color: "#a8e6cf",
           fontFamily: "monospace",
           fontSize: 14,
@@ -150,7 +156,7 @@ export default function App() {
           onClick={() => setOpenExhibitId(nearExhibit.id)}
           style={{
             position: "absolute",
-            bottom: 28,
+            bottom: centerBottom,
             left: "50%",
             transform: "translateX(-50%)",
             background: "rgba(0,0,0,0.7)",
@@ -178,7 +184,11 @@ export default function App() {
       )}
 
       {!openExhibit && (
-        <EmoteBar onEmote={(k) => gameRef.current?.sendEmote(k)} showKeys={!isTouch} />
+        <EmoteBar
+          onEmote={(k) => gameRef.current?.sendEmote(k)}
+          showKeys={!isTouch}
+          vertical={isTouch}
+        />
       )}
 
       {!openExhibit && !composerOpen && !showPrompt && (
@@ -187,7 +197,7 @@ export default function App() {
           onClick={() => setComposerOpen(true)}
           style={{
             position: "absolute",
-            bottom: 28,
+            bottom: centerBottom,
             left: "50%",
             transform: "translateX(-50%)",
             background: "rgba(0,0,0,0.6)",
@@ -208,7 +218,7 @@ export default function App() {
         <div
           style={{
             position: "absolute",
-            bottom: 24,
+            bottom: centerBottom,
             left: "50%",
             transform: "translateX(-50%)",
             display: "flex",

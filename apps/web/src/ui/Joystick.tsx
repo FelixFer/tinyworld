@@ -56,8 +56,8 @@ export function Joystick({ onMove }: JoystickProps) {
       aria-hidden="true"
       style={{
         position: "absolute",
-        bottom: 32,
-        left: 32,
+        bottom: "calc(32px + env(safe-area-inset-bottom))",
+        left: "calc(32px + env(safe-area-inset-left))",
         width: SIZE,
         height: SIZE,
         borderRadius: "50%",

@@ -1,4 +1,5 @@
 import type { EmoteKind } from "@tinyworld/shared";
+import type { CSSProperties } from "react";
 
 const EMOTES: { kind: EmoteKind; emoji: string; key: string }[] = [
   { kind: "wave", emoji: "👋", key: "1" },
@@ -11,11 +12,24 @@ interface EmoteBarProps {
   onEmote: (kind: EmoteKind) => void;
   /** Show the keyboard-shortcut hint (desktop only). */
   showKeys: boolean;
+  /** Touch layout: a vertical column on the right edge, clear of the joystick. */
+  vertical?: boolean;
 }
 
-export function EmoteBar({ onEmote, showKeys }: EmoteBarProps) {
+export function EmoteBar({ onEmote, showKeys, vertical = false }: EmoteBarProps) {
+  const position: CSSProperties = vertical
+    ? {
+        top: "50%",
+        right: "calc(12px + env(safe-area-inset-right))",
+        transform: "translateY(-50%)",
+        flexDirection: "column",
+      }
+    : {
+        bottom: "calc(32px + env(safe-area-inset-bottom))",
+        right: "calc(32px + env(safe-area-inset-right))",
+      };
   return (
-    <div style={{ position: "absolute", bottom: 32, right: 32, display: "flex", gap: 8 }}>
+    <div style={{ position: "absolute", display: "flex", gap: 8, ...position }}>
       {EMOTES.map((e) => (
         <button
           key={e.kind}
