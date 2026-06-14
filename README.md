@@ -2,7 +2,7 @@
 
 A persistent multiplayer world — every visitor is an avatar, past visitors return as ghosts, and the netcode is the point. Walk around with WASD (or a virtual joystick on mobile), read project exhibits, kick a ball, wave at strangers.
 
-**Live:** https://tinyworldweb-production.up.railway.app · **Plain version:** [`/plain`](https://tinyworldweb-production.up.railway.app/plain) · **Writeup:** [`BLOG.md`](BLOG.md)
+**Live:** https://tinyworldweb-production.up.railway.app · **Plain version:** [`/plain`](https://tinyworldweb-production.up.railway.app/plain) · **Deep dive:** [`BLOG.md`](BLOG.md)
 
 > **By the numbers** — 20 Hz authoritative tick · client-side prediction + reconciliation · custom binary protocol **3.2× smaller** than JSON · server tick **p95 ~0.15 ms at 200 simulated clients**.
 
@@ -33,6 +33,48 @@ The full writeup — architecture, netcode, ghost privacy, and the binary-protoc
 
 <img width="1918" height="984" alt="Image" src="https://github.com/user-attachments/assets/4ec7aa4f-8b51-4170-8e00-825e708bddc6" />
 
+## How it's built (at a glance)
+
+```
+┌──────────────────────────┐        WebSocket (binary snap + JSON ctrl)        ┌──────────────────────────┐
+│  apps/web                │  ◀────────────────────────────────────────────▶  │  apps/server             │
+│  PixiJS v8 canvas        │                                                   │  Node 22 + uWebSockets   │
+│  + React DOM overlay     │  predict own avatar (shared step)                 │  20 Hz fixed tick (Game) │
+│  LocalPlayer predicts +  │  ──────────────────────────────────────────────   │  authoritative state     │
+│  reconciles              │                                                   │  uWebSockets → broadcast │
+│  RemoteEntity interp.    │                                                   │  prom-client /metrics    │
+└──────────────────────────┘                                                   └──────────┬───────────────┘
+                                                                                          │ (optional)
+                                                                                          ▼
+                                                                              ┌──────────────────────────┐
+                                                                              │  Postgres (Neon)         │
+                                                                              │  + Drizzle ORM           │
+                                                                              │  ghosts · notes · bans   │
+                                                                              │  daily stats · goals     │
+                                                                              └──────────────────────────┘
+```
+
+- **Single `step()`** in [`packages/shared/src/entity.ts`](packages/shared/src/entity.ts) runs on **both** sides — the server calls it for authority, the client calls it for prediction. It's the only place movement lives. (`step` is exported at [`entity.ts:57`](packages/shared/src/entity.ts#L57).)
+- **Reconciliation** lives in [`apps/web/src/game/LocalPlayer.ts`](apps/web/src/game/LocalPlayer.ts) (`reconcile` at `LocalPlayer.ts:92`): on every snapshot we snap to the server position (`EntitySnapshot.lastInputSeq` is the ack) and replay the rest of the unacked inputs through the same `step()`. When the prediction was right, the player doesn't visually correct.
+- **Interpolation** for everyone else: [`apps/web/src/game/RemoteEntity.ts`](apps/web/src/game/RemoteEntity.ts) renders ~120 ms behind server time from a small snapshot buffer.
+- **The 20 Hz hot path is binary.** [`packages/shared/src/snapCodec.ts`](packages/shared/src/snapCodec.ts) (`encodeSnap` / `decodeSnap`) packs each snapshot into a `DataView` frame; the client sets `ws.binaryType = "arraybuffer"` and decodes back into the same `SnapMsg` shape, so downstream code is identical to the JSON path. Every other message stays JSON. Toggle with `SNAP_BINARY` to A/B the two.
+- **Server tick + observability:** [`apps/server/src/game/Game.ts`](apps/server/src/game/Game.ts) owns the loop (`gameTick` at `Game.ts:94`, scheduled by `setInterval` at 20 Hz); every tick is timed by `observeTick` in [`apps/server/src/metrics.ts`](apps/server/src/metrics.ts) and exposed at `GET /metrics`.
+
+## Privacy, briefly
+
+No accounts, no emails, no third-party trackers. Visitor "names" are generated (`Curious Capybara`-style) from a small word list. The only data tied to you is a **salted hash of your IP**, used solely for per-hash rate limits on chalk notes and for ban enforcement — your raw IP is never stored. Ghosts store **paths only**, quantized and delta-encoded; the recording is dropped if the session is too short or too still. A short `/privacy` page says exactly this in the running app.
+
+## Scope (what this deliberately isn't)
+
+The opposite list matters as much as the feature list. Decisions, not omissions:
+
+- **One process, in-memory world.** No Redis, no Kafka, no second box. The scale-out story is designed and written up in the blog, not built — adding a queue to a single-process game is a red flag.
+- **No auth, no accounts.** Visitors walk in. The "identity" surface is a generated name and a salted IP hash.
+- **No rollback netcode.** Snapshot interpolation only. Adding rollback would be a different project with different perf targets.
+- **No server-side map streaming, no spatial sharding.** One map, one process, ~200 CCU budget.
+- **Postgres is optional.** Without `DATABASE_URL`, the world runs fully; ghosts, chalk notes, and the persisted goals counter are simply disabled. See `apps/server/README.md`.
+- **No build step on the data path.** Serialization is one `DataView.encode*` call per snapshot — no allocations in the tick.
+
 ## Tech stack
 
 | Layer       | Choice                                                  |
@@ -47,10 +89,11 @@ The full writeup — architecture, netcode, ghost privacy, and the binary-protoc
 ## Repo layout
 
 ```
-apps/web/         Vite + React + PixiJS client
-apps/server/      Node + uWebSockets.js game server (+ Drizzle/Postgres)
-packages/shared/  protocol types, constants, the shared sim step()
-packages/world/   tile map, collision, exhibit content
+apps/web/         Vite + React + PixiJS client         → see apps/web/README.md
+apps/server/      Node + uWebSockets.js game server     → see apps/server/README.md
+packages/shared/  protocol types, constants, the shared sim step()  → see packages/shared/README.md
+packages/world/   tile map, collision, exhibit content  → see packages/world/README.md
+infra/            Dockerfile, k6 load tests, Grafana stack
 ```
 
 ## Local development

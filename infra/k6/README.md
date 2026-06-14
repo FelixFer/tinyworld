@@ -36,7 +36,7 @@ curl -s localhost:3000/metrics | grep tinyworld_tick_duration_summary_ms
 # tinyworld_tick_duration_summary_ms{quantile="0.99"} ...
 ```
 
-Target: **p95 < 10 ms, p99 < 16 ms** at 200 CCU (PLAN §12).
+Target: **p95 < 10 ms, p99 < 16 ms** at 200 CCU.
 
 **Egress KB/s/client** — sample the byte counter before and after the steady
 state, then divide by elapsed seconds and CCU:
@@ -50,7 +50,7 @@ bytesPerSecPerClient = (snap_bytes_after - snap_bytes_before)
 curl -s localhost:3000/metrics | grep -E 'tinyworld_snap_bytes_total|tinyworld_ccu'
 ```
 
-Target: **< 12 KB/s/client (JSON v0) → < 4 KB/s (binary v1)** (PLAN §12).
+Target: **< 12 KB/s/client (JSON v0) → < 4 KB/s (binary v1)**.
 
 ## Before/after: JSON vs binary
 
@@ -65,8 +65,9 @@ Capture `bytesPerSecPerClient` each time → that delta is the binary protocol's
 bandwidth win, and the headline of the perf writeup.
 
 Measured locally at ~200 CCU: **441 KB/s/client (JSON) → 138 KB/s/client
-(binary) = 3.19× less egress**, with the same ~0.1 ms tick cost in both builds
-(serialization happens outside the timed tick).
+(binary) ≈ 3.19× less egress** (rounded to **3.2×** in the public headline),
+with the same ~0.1 ms tick cost in both builds (serialization happens outside
+the timed tick).
 
 ## Caveat
 
