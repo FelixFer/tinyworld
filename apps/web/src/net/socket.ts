@@ -12,6 +12,7 @@ import type {
   SnapMsg,
   WelcomeMsg,
 } from "@tinyworld/shared";
+import { decodeSnap } from "@tinyworld/shared";
 
 const WS_URL = import.meta.env.DEV
   ? "ws://localhost:3000/ws"
@@ -38,6 +39,8 @@ interface SocketOptions {
 
 export function createSocket(opts: SocketOptions): SocketHandle {
   const ws = new WebSocket(WS_URL);
+  // Snapshots arrive as binary frames (binary protocol v1); everything else is JSON.
+  ws.binaryType = "arraybuffer";
   let pingInterval: ReturnType<typeof setInterval> | undefined;
 
   ws.addEventListener("open", () => {
@@ -50,6 +53,12 @@ export function createSocket(opts: SocketOptions): SocketHandle {
   });
 
   ws.addEventListener("message", (event) => {
+    // Binary frame => snapshot (the hot path). Decode and dispatch directly.
+    if (event.data instanceof ArrayBuffer) {
+      opts.onSnap(decodeSnap(event.data));
+      return;
+    }
+
     let msg: ServerMsg;
     try {
       msg = JSON.parse(event.data as string) as ServerMsg;

@@ -1,6 +1,7 @@
 import type { Dir, EntityInput, SolidTest, Steppable } from "@tinyworld/shared";
 import { GOAL_RECT, createEntity, step } from "@tinyworld/shared";
 import { CollisionGrid, VILLAGE_MAP } from "@tinyworld/world";
+import { observeTick } from "../metrics.js";
 import { Ball } from "./Ball.js";
 import { Cat } from "./Cat.js";
 import { saveCounter } from "./Counters.js";
@@ -91,6 +92,7 @@ export class ServerGame {
   }
 
   private gameTick(): void {
+    const t0 = performance.now();
     this.currentTick++;
 
     for (const serverEntity of this.entities.values()) {
@@ -129,6 +131,8 @@ export class ServerGame {
         if (e.disconnectedAt === 0) e.recordSample();
       }
     }
+
+    observeTick(performance.now() - t0);
   }
 
   private ballInGoal(): boolean {

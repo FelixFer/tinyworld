@@ -138,3 +138,31 @@ export function entityToSnapshot(entity: {
     kind: "player",
   };
 }
+
+// --- Binary protocol v1 (snapshot hot path) ---------------------------------
+// Only the periodic SnapMsg is sent as a binary frame (server → client); every
+// other message stays JSON. The first byte of a binary frame is the msg type so
+// the client can tell binary kinds apart in the future.
+
+/** First byte of a binary `snap` frame. */
+export const SNAP_MSG_TYPE = 1;
+
+/** Stable wire ordering for Dir <-> uint8 (index === byte value). */
+export const DIR_ORDER: Dir[] = ["idle", "up", "down", "left", "right"];
+export const DIR_TO_INT: Record<Dir, number> = {
+  idle: 0,
+  up: 1,
+  down: 2,
+  left: 3,
+  right: 4,
+};
+
+/** Stable wire ordering for EntityKind <-> uint8 (index === byte value). */
+export const KIND_ORDER: EntityKind[] = ["player", "cat", "dog", "ball", "ghost"];
+export const KIND_TO_INT: Record<EntityKind, number> = {
+  player: 0,
+  cat: 1,
+  dog: 2,
+  ball: 3,
+  ghost: 4,
+};

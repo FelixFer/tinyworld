@@ -18,7 +18,7 @@ import type {
   SnapMsg,
   WelcomeMsg,
 } from "@tinyworld/shared";
-import { DAY_CYCLE_MS, entityToSnapshot } from "@tinyworld/shared";
+import { DAY_CYCLE_MS, encodeSnap, entityToSnapshot } from "@tinyworld/shared";
 import { VILLAGE_MAP } from "@tinyworld/world";
 import type uWS from "uWebSockets.js";
 import uWSLib from "uWebSockets.js";
@@ -28,6 +28,7 @@ import { type ServerEntity, ServerGame } from "./game/Game.js";
 import { generateName } from "./game/Names.js";
 import { NotesManager, ipHash } from "./game/Notes.js";
 import { SnapshotManager } from "./game/Snapshot.js";
+import { ccu, entitiesGauge, register, snapBytes, snapMsgs } from "./metrics.js";
 import { renderPlainPage } from "./plain.js";
 
 interface ClientWebSocket extends uWS.WebSocket<unknown> {
@@ -36,6 +37,9 @@ interface ClientWebSocket extends uWS.WebSocket<unknown> {
 }
 
 const PORT = Number(process.env.PORT) || 3000;
+// Binary snapshot protocol on by default; set SNAP_BINARY=false to send JSON
+// snapshots (used to measure the JSON-vs-binary egress baseline).
+const SNAP_BINARY = process.env.SNAP_BINARY !== "false";
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
 const PUBLIC_DIR = join(__dirname, "..", "..", "..", "public");
 
@@ -181,7 +185,26 @@ function broadcastSnapshot(): void {
     goals: game.goals,
   };
 
-  sendToAll(msg);
+  ccu.set(activeEntities.length);
+  entitiesGauge.set(game.entities.size);
+
+  const recipients = connectedWebSockets.size;
+  if (recipients === 0) return;
+
+  // The snapshot is the hot path (~all egress). Binary frame by default;
+  // JSON fallback for the bandwidth-baseline measurement. Other message types
+  // (welcome, event, pong, notes, error) always go out as JSON via sendToAll.
+  if (SNAP_BINARY) {
+    const buf = encodeSnap(msg);
+    snapBytes.inc(buf.byteLength * recipients);
+    snapMsgs.inc(recipients);
+    for (const ws of connectedWebSockets) ws.send(buf, true);
+  } else {
+    const json = JSON.stringify(msg);
+    snapBytes.inc(Buffer.byteLength(json) * recipients);
+    snapMsgs.inc(recipients);
+    for (const ws of connectedWebSockets) ws.send(json, false);
+  }
 }
 
 setInterval(broadcastSnapshot, 50);
@@ -195,6 +218,23 @@ app
         tick: game.currentTick,
       }),
     );
+  })
+  .get("/metrics", (res) => {
+    // register.metrics() is async; guard the response like the /admin routes.
+    let aborted = false;
+    res.onAborted(() => {
+      aborted = true;
+    });
+    register
+      .metrics()
+      .then((body) => {
+        if (aborted) return;
+        res.cork(() => res.writeHeader("Content-Type", register.contentType).end(body));
+      })
+      .catch((e) => {
+        console.error("metrics render failed", e);
+        if (!aborted) res.cork(() => res.writeStatus("500 Internal Server Error").end());
+      });
   })
   .ws("/ws", {
     compression: 0,
